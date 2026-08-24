@@ -1,75 +1,99 @@
----
-tags: [quickstart, vision, fds]
-dataset: [CIFAR-10]
-framework: [torch, torchvision]
----
+# Grouped Federated Averaging with Flower and PyTorch
 
-# Federated Learning with PyTorch and Flower (Quickstart Example)
+This project starts from Flower's PyTorch quickstart and implements two-level federated averaging:
 
-This introductory example to Flower uses PyTorch, but deep knowledge of PyTorch is not necessarily required to run the example. However, it will help you understand how to adapt Flower to your use case. Running this example in itself is quite easy. This example uses [Flower Datasets](https://flower.ai/docs/datasets/) to download, partition and preprocess the CIFAR-10 dataset.
+1. Client models are aggregated inside four configured partition groups.
+2. The four temporary group models are aggregated proportionally to each group's total number of training examples.
 
-## Set up the project
+With proportional weights at both levels, the final model is mathematically equivalent to standard example-weighted FedAvg.
 
-### Fetch the app
+The explicit group structure makes it possible to inspect each group and later test alternative group weighting policies.
 
-Install Flower:
+## Project Structure
 
-```shell
-pip install flwr
+```text
+pytorchexample/
+├── client_app.py
+├── server_app.py
+├── tasks/
+│   ├── base.py
+│   ├── cifar10.py
+│   └── registry.py
+└── strategy/
+    ├── aggregation.py
+    ├── grouped_fedavg.py
+    └── grouping.py
 ```
 
-Fetch the app:
+- `client_app.py` contains generic Flower client handlers.
+- `server_app.py` configures and starts the experiment.
+- `tasks/` isolates dataset, model, training, and evaluation details.
+- `strategy/` contains grouping and two-level aggregation logic.
 
-```shell
-flwr new @flwrlabs/quickstart-pytorch
+## Current Task
+
+CIFAR-10 is the first implemented task.
+
+The task interface is intentionally independent of images, so Shakespeare or a Stack Exchange task can be added by implementing the same methods and registering the new task in:
+
+```text
+pytorchexample/tasks/registry.py
 ```
 
-This will create a new directory called `quickstart-pytorch` with the following structure:
+All models participating in one run must have the same architecture.
 
-```shell
-quickstart-pytorch
-├── pytorchexample
-│   ├── __init__.py
-│   ├── client_app.py   # Defines your ClientApp
-│   ├── server_app.py   # Defines your ServerApp
-│   └── task.py         # Defines your model, training and data loading
-├── pyproject.toml      # Project metadata like dependencies and configs
-└── README.md
+The task can change between runs, but models from different tasks cannot be averaged together.
+
+## Configure Partition Groups
+
+The default configuration uses ten partitions and four groups:
+
+```toml
+num-partitions = 10
+num-groups = 4
+partition-groups = "0,1,2|3,4,5|6,7|8,9"
 ```
 
-### Install dependencies and project
+The values are zero-based partition IDs, not Flower node IDs.
 
-Install the dependencies defined in `pyproject.toml` as well as the `pytorchexample` package.
+Every expected partition must appear exactly once.
+
+## Run the Application
+
+Install the project and its dependencies:
 
 ```bash
 pip install -e .
 ```
 
-## Run the project
-
-You can run your Flower project in both _simulation_ and _deployment_ mode without making changes to the code. If you are starting with Flower, we recommend you using the _simulation_ mode as it requires fewer components to be launched manually. By default, `flwr run` will make use of the Simulation Engine.
-
-### Run with the Simulation Engine
-
-> [!TIP]
-> This example runs faster when the `ClientApp`s have access to a GPU. Check the [Simulation Engine documentation](https://flower.ai/docs/framework/how-to-run-simulations.html) to learn more about Flower simulations and how to optimize them.
+Run the application with a federation containing ten SuperNodes:
 
 ```bash
-# Run with the default federation (CPU only)
-flwr run .  --stream
+flwr run . --stream
 ```
 
-You can also override some of the settings for your `ClientApp` and `ServerApp` defined in `pyproject.toml`. For example:
+The number of SuperNodes must match `num-partitions`.
 
-```bash
-flwr run . --run-config "num-server-rounds=5 learning-rate=0.05"  --stream
-```
+---
 
-> [!TIP]
-> For a more detailed walk-through check our [quickstart PyTorch tutorial](https://flower.ai/docs/framework/tutorial-quickstart-pytorch.html)
+## Technologies
 
-### Run with the Deployment Engine
+- Python
+- PyTorch
+- Flower
+- Flower Datasets
+- CIFAR-10
 
-Follow this [how-to guide](https://flower.ai/docs/framework/how-to-run-flower-with-deployment-engine.html) to run the same app in this example but with Flower's Deployment Engine. After that, you might be intersted in setting up [secure TLS-enabled communications](https://flower.ai/docs/framework/how-to-enable-tls-connections.html) and [SuperNode authentication](https://flower.ai/docs/framework/how-to-authenticate-supernodes.html) in your federation.
+---
 
-If you are already familiar with how the Deployment Engine works, you may want to learn how to run it using Docker. Check out the [Flower with Docker](https://flower.ai/docs/framework/docker/index.html) documentation.
+## Current Status
+
+- [x] CIFAR-10 task
+- [x] Dataset partition grouping
+- [x] Intra-group weighted aggregation
+- [x] Inter-group weighted aggregation
+- [x] Flower integration
+- [x] Standard FedAvg equivalence
+- [ ] Alternative group weighting policies
+- [ ] Additional datasets
+- [ ] Energy-aware aggregation strategies
