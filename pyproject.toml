@@ -1,0 +1,45 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "quickstart-pytorch"
+version = "2.0.0"
+description = "Grouped federated averaging with PyTorch and Flower"
+license = {file = "LICENSE"}
+dependencies = [
+    "flwr[simulation]>=1.31.0",
+    "flwr-datasets[vision]>=0.6.0",
+    "torch==2.10.0",
+    "torchvision==0.25.0",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["."]
+
+[tool.flwr.app]
+publisher = "flwrlabs"
+fab-format-version = 1
+flwr-version-target = "1.31.0"
+
+[tool.flwr.app.components]
+serverapp = "pytorchexample.server_app:app"
+clientapp = "pytorchexample.client_app:app"
+
+[tool.flwr.app.config]
+# Select one task implementation from pytorchexample/tasks/registry.py.
+task-name = "cifar10"
+
+# Keep this value equal to the number of simulated SuperNodes.
+num-partitions = 10
+num-server-rounds = 30
+fraction-evaluate = 1.0
+local-epochs = 5
+learning-rate = 0.1
+batch-size = 32
+save-model = false
+
+# Separate groups with "|" and partition IDs inside a group with ",".
+# Partition IDs are zero-based and must appear exactly once.
+num-groups = 4
+partition-groups = "0,1,2|3,4,5|6,7|8,9"
