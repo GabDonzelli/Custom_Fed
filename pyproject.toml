@@ -39,7 +39,4 @@ learning-rate = 0.1
 batch-size = 32
 save-model = false
 
-# Separate groups with "|" and partition IDs inside a group with ",".
-# Partition IDs are zero-based and must appear exactly once.
-num-groups = 4
-partition-groups = "0,1,2|3,4,5|6,7|8,9"
+

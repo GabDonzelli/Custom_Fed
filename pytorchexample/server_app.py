@@ -6,8 +6,7 @@ from flwr.app import ArrayRecord, ConfigRecord, Context, MetricRecord
 from flwr.common import log
 from flwr.serverapp import Grid, ServerApp
 
-from pytorchexample.strategy.grouped_fedavg import GroupedFedAvg
-from pytorchexample.strategy.grouping import parse_partition_groups
+from flwr.serverapp.strategy import FedAvg
 from pytorchexample.tasks.registry import get_task
 
 app = ServerApp()
@@ -22,19 +21,6 @@ def main(grid: Grid, context: Context) -> None:
     num_groups = int(context.run_config["num-groups"])
     batch_size = int(context.run_config["batch-size"])
 
-    partition_groups = parse_partition_groups(
-        group_specification=str(context.run_config["partition-groups"]),
-        num_groups=num_groups,
-        num_partitions=num_partitions,
-    )
-    for group_id, partition_ids in partition_groups.items():
-        log(
-            INFO,
-            "configured group %d with partitions %s",
-            group_id,
-            list(partition_ids),
-        )
-
     task = get_task(task_name)
     global_model = task.create_model()
     initial_arrays = ArrayRecord(global_model.state_dict())
@@ -43,11 +29,11 @@ def main(grid: Grid, context: Context) -> None:
         batch_size=batch_size,
     )
 
-    strategy = GroupedFedAvg(
-        partition_groups=partition_groups,
+    strategy = FedAvg(
         fraction_train=1.0,
         fraction_evaluate=float(context.run_config["fraction-evaluate"]),
         min_train_nodes=num_partitions,
+        min_evaluate_nodes=num_partitions,
         min_available_nodes=num_partitions,
         weighted_by_key="num-examples",
     )
