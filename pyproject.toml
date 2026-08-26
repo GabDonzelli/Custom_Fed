@@ -32,7 +32,7 @@ task-name = "cifar10"
 
 # Keep this value equal to the number of simulated SuperNodes.
 num-partitions = 10
-num-server-rounds = 30
+num-server-rounds = 10
 fraction-evaluate = 1.0
 local-epochs = 5
 learning-rate = 0.1

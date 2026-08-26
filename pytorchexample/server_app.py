@@ -18,7 +18,6 @@ def main(grid: Grid, context: Context) -> None:
     """Run federated training with four proportional client groups."""
     task_name = str(context.run_config["task-name"])
     num_partitions = int(context.run_config["num-partitions"])
-    num_groups = int(context.run_config["num-groups"])
     batch_size = int(context.run_config["batch-size"])
 
     task = get_task(task_name)
