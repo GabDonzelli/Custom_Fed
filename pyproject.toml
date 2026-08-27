@@ -31,9 +31,15 @@ clientapp = "pytorchexample.client_app:app"
 task-name = "cifar10"
 
 # Keep this value equal to the number of simulated SuperNodes.
-num-partitions = 10
+num-partitions = 100
 num-server-rounds = 10
 fraction-evaluate = 1.0
+# Fraction of connected clients sampled for training each round.
+# With num-partitions = 100 and fraction-train = 0.1, ~10 clients train per round.
+fraction-train = 0.3
+# Minimum number of clients that must be sampled for training each round,
+# regardless of fraction-train (Flower default is 2).
+min-train-nodes = 2
 local-epochs = 5
 learning-rate = 0.1
 batch-size = 32

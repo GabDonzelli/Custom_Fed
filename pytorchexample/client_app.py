@@ -4,6 +4,7 @@ import torch
 from flwr.app import ArrayRecord, Context, Message, MetricRecord, RecordDict
 from flwr.clientapp import ClientApp
 
+from pytorchexample.strategy.tracked_fedavg import PARTITION_ID_KEY
 from pytorchexample.tasks.registry import get_task
 
 app = ClientApp()
@@ -50,6 +51,7 @@ def train(msg: Message, context: Context) -> Message:
 
     model_record = ArrayRecord(model.state_dict())
     train_metrics["num-examples"] = len(trainloader.dataset)
+    train_metrics[PARTITION_ID_KEY] = partition_id
     metric_record = MetricRecord(train_metrics)
     content = RecordDict({"arrays": model_record, "metrics": metric_record})
     return Message(content=content, reply_to=msg)

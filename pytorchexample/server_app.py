@@ -1,4 +1,4 @@
-"""ServerApp entry point for proportional grouped FedAvg."""
+"""ServerApp entry point for the plain FedAvg baseline (no client grouping)."""
 from logging import INFO
 
 import torch
@@ -6,7 +6,7 @@ from flwr.app import ArrayRecord, ConfigRecord, Context, MetricRecord
 from flwr.common import log
 from flwr.serverapp import Grid, ServerApp
 
-from flwr.serverapp.strategy import FedAvg
+from pytorchexample.strategy.tracked_fedavg import TrackedFedAvg
 from pytorchexample.tasks.registry import get_task
 
 app = ServerApp()
@@ -15,7 +15,7 @@ DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 @app.main()
 def main(grid: Grid, context: Context) -> None:
-    """Run federated training with four proportional client groups."""
+    """Run federated training with plain FedAvg across all clients."""
     task_name = str(context.run_config["task-name"])
     num_partitions = int(context.run_config["num-partitions"])
     batch_size = int(context.run_config["batch-size"])
@@ -28,11 +28,10 @@ def main(grid: Grid, context: Context) -> None:
         batch_size=batch_size,
     )
 
-    strategy = FedAvg(
-        fraction_train=1.0,
+    strategy = TrackedFedAvg(
+        fraction_train=float(context.run_config.get("fraction-train", 1.0)),
         fraction_evaluate=float(context.run_config["fraction-evaluate"]),
-        min_train_nodes=num_partitions,
-        min_evaluate_nodes=num_partitions,
+        min_train_nodes=int(context.run_config.get("min-train-nodes", 2)),
         min_available_nodes=num_partitions,
         weighted_by_key="num-examples",
     )
@@ -47,12 +46,17 @@ def main(grid: Grid, context: Context) -> None:
         evaluation_metrics = task.evaluate(model, centralized_testloader, DEVICE)
         return MetricRecord(evaluation_metrics)
 
+    num_rounds = int(context.run_config["num-server-rounds"])
     result = strategy.start(
         grid=grid,
         initial_arrays=initial_arrays,
         train_config=ConfigRecord({"lr": float(context.run_config["learning-rate"])}),
-        num_rounds=int(context.run_config["num-server-rounds"]),
+        num_rounds=num_rounds,
         evaluate_fn=global_evaluate,
+    )
+
+    strategy.log_participation_summary(
+        num_partitions=num_partitions, num_rounds=num_rounds
     )
 
     if bool(context.run_config["save-model"]):
