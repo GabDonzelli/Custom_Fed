@@ -18,6 +18,7 @@ pytorchexample/
 ├── tasks/
 │   ├── base.py
 │   ├── cifar10.py
+│   ├── stackexchange.py
 │   └── registry.py
 └── strategy/
     ├── aggregation.py
@@ -30,19 +31,52 @@ pytorchexample/
 - `tasks/` isolates dataset, model, training, and evaluation details.
 - `strategy/` contains grouping and two-level aggregation logic.
 
-## Current Task
+## Current Tasks
 
-CIFAR-10 is the first implemented task.
+Select the task with `task-name` in `pyproject.toml`:
 
-The task interface is intentionally independent of images, so Shakespeare or a Stack Exchange task can be added by implementing the same methods and registering the new task in:
-
-```text
-pytorchexample/tasks/registry.py
+```toml
+task-name = "cifar10"   # or "stackexchange"
 ```
 
-All models participating in one run must have the same architecture.
+All models participating in one run must have the same architecture. The
+task can change between runs, but models from different tasks cannot be
+averaged together.
 
-The task can change between runs, but models from different tasks cannot be averaged together.
+The task interface (`pytorchexample/tasks/base.py`) is intentionally
+independent of any one dataset, so a new task can be added by implementing
+the same methods and registering it in `pytorchexample/tasks/registry.py`.
+
+### `cifar10`
+
+IID image classification (CIFAR-10, IID partitioning across clients). The
+default task.
+
+### `stackexchange`
+
+Non-IID next-word prediction over `HuggingFaceH4/stack-exchange-preferences`:
+each simulated client is one real Stack Exchange author (different people
+naturally write about different topics/sites, so this is genuinely non-IID —
+unlike CIFAR-10's IID partitioner). A small word-level LSTM predicts the next
+token given previous tokens in an answer.
+
+The Hub copy of this dataset does not support cheap row-slicing — even a
+`datasets.load_dataset(..., split="train[:2000]")` call downloads full,
+multi-gigabyte parquet shards. `pytorchexample/tasks/stackexchange.py` reads
+it through the Hugging Face **streaming** API instead and stops after
+scanning `MAX_QUESTIONS_SCANNED` questions (default `20_000`), which keeps
+the download small and bounded regardless of `num-partitions`.
+
+The `num_partitions` most active qualifying authors (>= 2 answers each,
+`MIN_ANSWERS_PER_AUTHOR`) found in that scan become the simulated clients;
+`HELD_OUT_AUTHORS` further authors (default `20`) are reserved for
+centralized (ServerApp-side) evaluation only, so that measures
+generalization to unseen authors. If the scan doesn't find enough qualifying
+authors for the configured `num-partitions`, `load_partition_data` /
+`load_centralized_data` raise a clear error telling you to raise
+`MAX_QUESTIONS_SCANNED` in the source file — these constants (plus `SEQ_LEN`,
+`VOCAB_SIZE`) are not exposed as `pyproject.toml` config keys, so adjust them
+by editing `pytorchexample/tasks/stackexchange.py` directly.
 
 ## Configure Partition Groups
 
@@ -129,6 +163,6 @@ The number of SuperNodes must match `num-partitions`.
 - [x] Inter-group weighted aggregation
 - [x] Flower integration
 - [x] Standard FedAvg equivalence
+- [x] Additional datasets (Stack Exchange, non-IID by author)
 - [ ] Alternative group weighting policies
-- [ ] Additional datasets
 - [ ] Energy-aware aggregation strategies

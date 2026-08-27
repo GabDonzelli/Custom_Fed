@@ -28,7 +28,7 @@ clientapp = "pytorchexample.client_app:app"
 
 [tool.flwr.app.config]
 # Select one task implementation from pytorchexample/tasks/registry.py.
-task-name = "cifar10"
+task-name = "stackexchange"
 
 # Keep this value equal to the number of simulated SuperNodes.
 num-partitions = 100

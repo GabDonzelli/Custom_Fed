@@ -4,9 +4,11 @@ from functools import cache
 
 from pytorchexample.tasks.base import FederatedTask
 from pytorchexample.tasks.cifar10 import Cifar10Task
+from pytorchexample.tasks.stackexchange import StackExchangeTask
 
 TASK_FACTORIES = {
     "cifar10": Cifar10Task,
+    "stackexchange": StackExchangeTask,
 }
 
 
