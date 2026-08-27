@@ -1,6 +1,10 @@
-"""Parse and validate partition groups."""
+"""Parse, validate, and auto-generate partition groups."""
+
+import random
 
 PartitionGroups = dict[int, tuple[int, ...]]
+
+GROUP_MODES = ("manual", "sequential", "random")
 
 
 def parse_partition_groups(
@@ -73,3 +77,96 @@ def build_partition_to_group(
         for group_id, partition_ids in partition_groups.items()
         for partition_id in partition_ids
     }
+
+
+def _group_sizes(num_partitions: int, num_groups: int) -> list[int]:
+    """Split num_partitions into num_groups sizes that differ by at most one."""
+    if num_groups <= 0:
+        raise ValueError("num_groups must be positive.")
+    if num_groups > num_partitions:
+        raise ValueError(
+            f"num_groups ({num_groups}) cannot exceed num_partitions "
+            f"({num_partitions})."
+        )
+
+    base_size, remainder = divmod(num_partitions, num_groups)
+    return [
+        base_size + (1 if group_id <= remainder else 0)
+        for group_id in range(1, num_groups + 1)
+    ]
+
+
+def generate_sequential_groups(
+    num_partitions: int,
+    num_groups: int,
+) -> PartitionGroups:
+    """Split partitions into contiguous, near-equal-size groups.
+
+    For example, 100 partitions in 4 groups produces
+    ``0-24, 25-49, 50-74, 75-99``.
+    """
+    partition_groups: PartitionGroups = {}
+    start = 0
+    for group_id, size in enumerate(
+        _group_sizes(num_partitions, num_groups), start=1
+    ):
+        partition_groups[group_id] = tuple(range(start, start + size))
+        start += size
+    return partition_groups
+
+
+def generate_random_groups(
+    num_partitions: int,
+    num_groups: int,
+    seed: int | None = None,
+) -> PartitionGroups:
+    """Randomly split partitions into near-equal-size groups.
+
+    Group sizes match :func:`generate_sequential_groups`; only the
+    assignment of partition IDs to groups is randomized.
+    """
+    sizes = _group_sizes(num_partitions, num_groups)
+    shuffled_partitions = list(range(num_partitions))
+    random.Random(seed).shuffle(shuffled_partitions)
+
+    partition_groups: PartitionGroups = {}
+    start = 0
+    for group_id, size in enumerate(sizes, start=1):
+        partition_groups[group_id] = tuple(
+            sorted(shuffled_partitions[start : start + size])
+        )
+        start += size
+    return partition_groups
+
+
+def build_partition_groups(
+    group_mode: str,
+    num_partitions: int,
+    num_groups: int,
+    manual_specification: str | None = None,
+    seed: int | None = None,
+) -> PartitionGroups:
+    """Build partition groups using the configured mode.
+
+    ``group_mode`` is one of ``"manual"``, ``"sequential"``, or ``"random"``.
+    ``manual_specification`` is required (and only used) for ``"manual"``.
+    ``seed`` is only used for ``"random"``.
+    """
+    normalized_mode = group_mode.strip().lower()
+
+    if normalized_mode == "manual":
+        if not manual_specification:
+            raise ValueError(
+                "'partition-groups' must be set when group-mode is 'manual'."
+            )
+        return parse_partition_groups(
+            manual_specification, num_groups, num_partitions
+        )
+    if normalized_mode == "sequential":
+        return generate_sequential_groups(num_partitions, num_groups)
+    if normalized_mode == "random":
+        return generate_random_groups(num_partitions, num_groups, seed)
+
+    raise ValueError(
+        f"Unknown group-mode '{group_mode}'. Expected one of {GROUP_MODES}."
+    )

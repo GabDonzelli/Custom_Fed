@@ -38,6 +38,9 @@ class GroupedFedAvg(FedAvg):
         # The history contains small summaries, not model parameters.
         self.group_history: dict[int, dict[int, dict[str, object]]] = {}
 
+        # Counts how many training rounds each partition actually replied to.
+        self.partition_participation: dict[int, int] = {}
+
     def aggregate_train(
         self,
         server_round: int,
@@ -73,6 +76,9 @@ class GroupedFedAvg(FedAvg):
             received_partitions.add(partition_id)
             node_id = reply.metadata.src_node_id
             self.partition_to_node[partition_id] = node_id
+            self.partition_participation[partition_id] = (
+                self.partition_participation.get(partition_id, 0) + 1
+            )
 
             group_id = self.partition_to_group[partition_id]
             records_by_group[group_id].append(record)
@@ -91,10 +97,9 @@ class GroupedFedAvg(FedAvg):
             group_aggregations.append(group)
             log(
                 INFO,
-                "round %d, group %d: partitions=%s, examples=%d",
+                "round %d, group %d: examples=%d",
                 server_round,
                 group.group_id,
-                list(group.partition_ids),
                 int(group.num_examples),
             )
 
@@ -125,3 +130,15 @@ class GroupedFedAvg(FedAvg):
             len(group_aggregations),
         )
         return global_arrays, global_metrics
+
+    def log_participation_summary(self, num_rounds: int) -> None:
+        """Log how many training rounds each configured partition replied to."""
+        for partition_id in sorted(self.partition_to_group):
+            count = self.partition_participation.get(partition_id, 0)
+            log(
+                INFO,
+                "partition %d: participated in %d/%d training rounds",
+                partition_id,
+                count,
+                num_rounds,
+            )

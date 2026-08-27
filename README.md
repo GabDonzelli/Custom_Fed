@@ -46,17 +46,52 @@ The task can change between runs, but models from different tasks cannot be aver
 
 ## Configure Partition Groups
 
-The default configuration uses ten partitions and four groups:
+`num-partitions` can be set to any number of simulated clients. Groups are built
+automatically according to `group-mode`:
 
 ```toml
-num-partitions = 10
+num-partitions = 100
 num-groups = 4
-partition-groups = "0,1,2|3,4,5|6,7|8,9"
+group-mode = "sequential"   # "sequential" | "random" | "manual"
 ```
 
-The values are zero-based partition IDs, not Flower node IDs.
+- `"sequential"` (default): contiguous ranges, e.g. 100 partitions / 4 groups
+  produces `0-24, 25-49, 50-74, 75-99`.
+- `"random"`: same group sizes as `"sequential"`, but partitions are shuffled
+  into them. Set `group-seed` (an integer) for a reproducible shuffle;
+  omit it for a different random split on every run.
+- `"manual"`: uses the exact `partition-groups` string, e.g.
+  `"0,1,2|3,4,5|6,7|8,9"` (zero-based partition IDs, comma-separated within
+  a group, groups separated by `|`). Every expected partition must appear
+  exactly once.
 
-Every expected partition must appear exactly once.
+Group sizes differ by at most one partition when `num_partitions` doesn't
+divide evenly by `num_groups`.
+
+## Partial Client Participation
+
+By default every connected client trains every round (`fraction-train = 1.0`).
+To sample only a fraction of clients per round (useful with a large
+`num-partitions`):
+
+```toml
+fraction-train = 0.1     # ~10% of clients train each round
+min-train-nodes = 2      # floor below which fraction-train is ignored
+```
+
+At the end of training, the server logs how many rounds each partition
+actually participated in:
+
+```
+INFO: partition 0: participated in 7/30 training rounds
+INFO: partition 1: participated in 8/30 training rounds
+...
+```
+
+Note: every group must receive at least one reply each round, or that round
+raises an error. With a very low `fraction-train` and many groups, it's
+possible for a round to sample no client from some group — pick
+`fraction-train` / `min-train-nodes` with the number of groups in mind.
 
 ## Run the Application
 

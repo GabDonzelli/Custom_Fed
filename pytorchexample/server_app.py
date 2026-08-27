@@ -7,7 +7,7 @@ from flwr.common import log
 from flwr.serverapp import Grid, ServerApp
 
 from pytorchexample.strategy.grouped_fedavg import GroupedFedAvg
-from pytorchexample.strategy.grouping import parse_partition_groups
+from pytorchexample.strategy.grouping import build_partition_groups
 from pytorchexample.tasks.registry import get_task
 
 app = ServerApp()
@@ -22,11 +22,20 @@ def main(grid: Grid, context: Context) -> None:
     num_groups = int(context.run_config["num-groups"])
     batch_size = int(context.run_config["batch-size"])
 
-    partition_groups = parse_partition_groups(
-        group_specification=str(context.run_config["partition-groups"]),
-        num_groups=num_groups,
+    group_mode = str(context.run_config.get("group-mode", "sequential"))
+    manual_specification = context.run_config.get("partition-groups")
+    group_seed = context.run_config.get("group-seed")
+
+    partition_groups = build_partition_groups(
+        group_mode=group_mode,
         num_partitions=num_partitions,
+        num_groups=num_groups,
+        manual_specification=(
+            str(manual_specification) if manual_specification is not None else None
+        ),
+        seed=int(group_seed) if group_seed is not None else None,
     )
+    log(INFO, "partition groups built using group-mode=%r", group_mode)
     for group_id, partition_ids in partition_groups.items():
         log(
             INFO,
@@ -45,9 +54,9 @@ def main(grid: Grid, context: Context) -> None:
 
     strategy = GroupedFedAvg(
         partition_groups=partition_groups,
-        fraction_train=1.0,
+        fraction_train=float(context.run_config.get("fraction-train", 1.0)),
         fraction_evaluate=float(context.run_config["fraction-evaluate"]),
-        min_train_nodes=num_partitions,
+        min_train_nodes=int(context.run_config.get("min-train-nodes", 2)),
         min_available_nodes=num_partitions,
         weighted_by_key="num-examples",
     )
@@ -62,13 +71,16 @@ def main(grid: Grid, context: Context) -> None:
         evaluation_metrics = task.evaluate(model, centralized_testloader, DEVICE)
         return MetricRecord(evaluation_metrics)
 
+    num_rounds = int(context.run_config["num-server-rounds"])
     result = strategy.start(
         grid=grid,
         initial_arrays=initial_arrays,
         train_config=ConfigRecord({"lr": float(context.run_config["learning-rate"])}),
-        num_rounds=int(context.run_config["num-server-rounds"]),
+        num_rounds=num_rounds,
         evaluate_fn=global_evaluate,
     )
+
+    strategy.log_participation_summary(num_rounds=num_rounds)
 
     if bool(context.run_config["save-model"]):
         final_state_dict = result.arrays.to_torch_state_dict()
