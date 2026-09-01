@@ -2,3 +2,4 @@
 __pycache__/
 *.pyc
 .flwr/
+pytorchexample/tasks/.stackexchange_cache/

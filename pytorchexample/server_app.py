@@ -9,6 +9,7 @@ from flwr.serverapp import Grid, ServerApp
 from pytorchexample.strategy.grouped_fedavg import GroupedFedAvg
 from pytorchexample.strategy.grouping import build_partition_groups
 from pytorchexample.tasks.registry import get_task
+from pytorchexample.results_logger import ResultsLogger
 
 app = ServerApp()
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -61,6 +62,8 @@ def main(grid: Grid, context: Context) -> None:
         weighted_by_key="num-examples",
     )
 
+    results_logger = ResultsLogger()
+
     def global_evaluate(
         server_round: int,
         arrays: ArrayRecord,
@@ -69,6 +72,15 @@ def main(grid: Grid, context: Context) -> None:
         model = task.create_model()
         model.load_state_dict(arrays.to_torch_state_dict())
         evaluation_metrics = task.evaluate(model, centralized_testloader, DEVICE)
+
+        accuracy = evaluation_metrics.get("accuracy", 0.0)
+        loss = evaluation_metrics.get("loss", 0.0)
+        results_logger.log_round(
+            round_num=server_round,
+            accuracy=accuracy,
+            loss=loss,
+        )
+
         return MetricRecord(evaluation_metrics)
 
     num_rounds = int(context.run_config["num-server-rounds"])
@@ -81,6 +93,7 @@ def main(grid: Grid, context: Context) -> None:
     )
 
     strategy.log_participation_summary(num_rounds=num_rounds)
+    results_logger.close()
 
     if bool(context.run_config["save-model"]):
         final_state_dict = result.arrays.to_torch_state_dict()

@@ -1,14 +1,20 @@
 """Tests for the pure, network-free parts of the Stack Exchange task."""
 
+import tempfile
 import unittest
+from pathlib import Path
+from unittest.mock import patch
 
 import torch
 
+from pytorchexample.tasks import stackexchange
 from pytorchexample.tasks.stackexchange import (
     PAD_ID,
     SEQ_LEN,
     StackExchangeLSTM,
     _clean_text,
+    _load_cached_answers,
+    _save_cached_answers,
     _select_partitions,
     _tokenize,
 )
@@ -80,6 +86,33 @@ class SelectPartitionsTest(unittest.TestCase):
         examples = self._examples({1: 5, 2: 5})
         with self.assertRaisesRegex(ValueError, "MAX_QUESTIONS_SCANNED"):
             _select_partitions(examples, num_partitions=5, held_out_authors=1)
+
+
+class DiskCacheTest(unittest.TestCase):
+    """Verify the on-disk scan cache used for network-free reruns (e.g. HPC)."""
+
+    def test_missing_cache_returns_none(self) -> None:
+        """No cached scan for this size means a fresh network scan is needed."""
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            with patch.object(stackexchange, "CACHE_DIR", Path(tmp_dir)):
+                self.assertIsNone(_load_cached_answers(max_questions=999))
+
+    def test_save_then_load_round_trips(self) -> None:
+        """A saved scan is loaded back byte-for-byte equivalent."""
+        examples = [(43, ["hello", "world"]), (7, ["3d", "printing"])]
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            with patch.object(stackexchange, "CACHE_DIR", Path(tmp_dir)):
+                _save_cached_answers(max_questions=100, examples=examples)
+                loaded = _load_cached_answers(max_questions=100)
+
+        self.assertEqual(loaded, examples)
+
+    def test_different_scan_sizes_use_separate_cache_entries(self) -> None:
+        """A cache for one max_questions value must not leak into another."""
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            with patch.object(stackexchange, "CACHE_DIR", Path(tmp_dir)):
+                _save_cached_answers(max_questions=100, examples=[(1, ["a"])])
+                self.assertIsNone(_load_cached_answers(max_questions=200))
 
 
 class StackExchangeLSTMTest(unittest.TestCase):

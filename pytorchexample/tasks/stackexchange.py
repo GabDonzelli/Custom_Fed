@@ -8,11 +8,17 @@ cheap row-slicing: even a `datasets.load_dataset(..., split="train[:2000]")`
 call downloads full multi-gigabyte parquet shards. This module instead reads
 the dataset through the streaming API and stops once ``MAX_QUESTIONS_SCANNED``
 questions have been scanned, which keeps the download small and bounded.
+
+The scanned-and-flattened result is cached to disk (see CACHE_DIR) so that
+only the very first run needs network access — useful on clusters where
+compute nodes have no internet access but a login/interactive node does.
 """
 
 import html
+import json
 import re
 from collections import Counter
+from pathlib import Path
 
 import torch
 import torch.nn.functional as F
@@ -44,8 +50,37 @@ VOCAB_SIZE = 5_000  # includes <pad> and <unk>
 PAD_ID = 0
 UNK_ID = 1
 
+# On-disk cache of the scanned-and-flattened dataset, keyed by how many
+# questions were scanned. Lets a network-free machine (e.g. a SLURM compute
+# node) reuse a scan already done elsewhere (e.g. the cluster's login node).
+CACHE_DIR = Path(__file__).resolve().parent / ".stackexchange_cache"
+
 _HTML_TAG_RE = re.compile(r"<[^>]+>")
 _TOKEN_RE = re.compile(r"[a-z0-9']+")
+
+
+def _cache_path(max_questions: int) -> Path:
+    return CACHE_DIR / f"scan_{max_questions}.json"
+
+
+def _load_cached_answers(max_questions: int) -> list[tuple[int, list[str]]] | None:
+    """Load a previous scan from disk, if one was cached for this scan size."""
+    cache_path = _cache_path(max_questions)
+    if not cache_path.exists():
+        return None
+    with cache_path.open("r", encoding="utf-8") as cache_file:
+        cached = json.load(cache_file)
+    return [(item["author_id"], item["tokens"]) for item in cached]
+
+
+def _save_cached_answers(
+    max_questions: int, examples: list[tuple[int, list[str]]]
+) -> None:
+    """Persist a scan to disk so future runs can skip the network entirely."""
+    CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    payload = [{"author_id": author_id, "tokens": tokens} for author_id, tokens in examples]
+    with _cache_path(max_questions).open("w", encoding="utf-8") as cache_file:
+        json.dump(payload, cache_file)
 
 
 def _clean_text(raw_html: str) -> str:
@@ -59,7 +94,15 @@ def _tokenize(text: str) -> list[str]:
 
 
 def _stream_author_answers(max_questions: int) -> list[tuple[int, list[str]]]:
-    """Stream questions from the Hub and flatten to (author_id, tokens) pairs."""
+    """Stream questions from the Hub and flatten to (author_id, tokens) pairs.
+
+    Reuses a cached scan from disk when available (see CACHE_DIR), so this
+    only touches the network the first time a given `max_questions` is used.
+    """
+    cached = _load_cached_answers(max_questions)
+    if cached is not None:
+        return cached
+
     stream = load_dataset(DATASET_NAME, split="train", streaming=True)
     examples: list[tuple[int, list[str]]] = []
     for question_index, question in enumerate(stream):
@@ -69,6 +112,8 @@ def _stream_author_answers(max_questions: int) -> list[tuple[int, list[str]]]:
             tokens = _tokenize(_clean_text(answer["text"]))
             if len(tokens) >= MIN_TOKENS_PER_EXAMPLE:
                 examples.append((int(answer["author_id"]), tokens))
+
+    _save_cached_answers(max_questions, examples)
     return examples
 
 
@@ -199,6 +244,15 @@ class StackExchangeTask:
     def create_model(self) -> nn.Module:
         """Create a fresh Stack Exchange language model."""
         return StackExchangeLSTM()
+
+    def prefetch(self, num_partitions: int) -> None:
+        """Scan and cache the dataset for `num_partitions` ahead of time.
+
+        Intended to be run once, on a machine with internet access, before
+        running on a machine without it (e.g. a SLURM compute node) — see
+        `prefetch_stackexchange.py`.
+        """
+        self._ensure_dataset(num_partitions)
 
     def load_partition_data(
         self,
