@@ -34,6 +34,7 @@ class ResultsLogger:
                 "round",
                 "accuracy",
                 "loss",
+                "learning_rate",
                 "num_clients_trained",
             ],
         )
@@ -46,6 +47,7 @@ class ResultsLogger:
         round_num: int,
         accuracy: float,
         loss: float,
+        learning_rate: float = None,
         num_clients: int = None,
     ) -> None:
         """Log metrics for one FL round.
@@ -54,6 +56,7 @@ class ResultsLogger:
             round_num: Round number (1-based)
             accuracy: Model accuracy on test set
             loss: Model loss on test set
+            learning_rate: Learning rate used to train this round's model
             num_clients: Number of clients trained in this round
         """
         row = {
@@ -61,12 +64,15 @@ class ResultsLogger:
             "round": round_num,
             "accuracy": f"{accuracy:.6f}",
             "loss": f"{loss:.6f}",
+            "learning_rate": "N/A" if learning_rate is None else f"{learning_rate:.8f}",
             "num_clients_trained": num_clients or "N/A",
         }
         self.writer.writerow(row)
         self.csv_file.flush()
+        lr_text = "" if learning_rate is None else f", lr={learning_rate:.6g}"
         print(
-            f"✓ Round {round_num}: accuracy={accuracy:.4f}, loss={loss:.4f}"
+            f"✓ Round {round_num}: accuracy={accuracy:.4f}, "
+            f"loss={loss:.4f}{lr_text}"
         )
 
     def close(self) -> None:

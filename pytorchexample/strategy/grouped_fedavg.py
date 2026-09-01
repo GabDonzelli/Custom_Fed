@@ -3,8 +3,9 @@
 from collections.abc import Iterable
 from logging import INFO
 
-from flwr.app import ArrayRecord, Message, MetricRecord
+from flwr.app import ArrayRecord, ConfigRecord, Message, MetricRecord
 from flwr.common import log
+from flwr.serverapp import Grid
 from flwr.serverapp.strategy import FedAvg
 
 from pytorchexample.strategy.aggregation import (
@@ -16,6 +17,7 @@ from pytorchexample.strategy.grouping import (
     PartitionGroups,
     build_partition_to_group,
 )
+from pytorchexample.strategy.lr_schedule import LRSchedule
 
 PARTITION_ID_KEY = "partition_id"
 
@@ -26,11 +28,16 @@ class GroupedFedAvg(FedAvg):
     def __init__(
         self,
         partition_groups: PartitionGroups,
+        lr_schedule: LRSchedule | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.partition_groups = partition_groups
         self.partition_to_group = build_partition_to_group(partition_groups)
+
+        # When set, overrides the learning rate in the broadcast train config
+        # once per round. When None, the config's own "lr" is left untouched.
+        self.lr_schedule = lr_schedule
 
         # This mapping is learned from real replies, never from node ordering.
         self.partition_to_node: dict[int, int] = {}
@@ -40,6 +47,20 @@ class GroupedFedAvg(FedAvg):
 
         # Counts how many training rounds each partition actually replied to.
         self.partition_participation: dict[int, int] = {}
+
+    def configure_train(
+        self,
+        server_round: int,
+        arrays: ArrayRecord,
+        config: ConfigRecord,
+        grid: Grid,
+    ) -> Iterable[Message]:
+        """Broadcast this round's scheduled learning rate with the model."""
+        if self.lr_schedule is not None:
+            learning_rate = self.lr_schedule(server_round)
+            config["lr"] = learning_rate
+            log(INFO, "round %d: learning rate %.6g", server_round, learning_rate)
+        return super().configure_train(server_round, arrays, config, grid)
 
     def aggregate_train(
         self,

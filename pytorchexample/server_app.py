@@ -8,6 +8,7 @@ from flwr.serverapp import Grid, ServerApp
 
 from pytorchexample.strategy.grouped_fedavg import GroupedFedAvg
 from pytorchexample.strategy.grouping import build_partition_groups
+from pytorchexample.strategy.lr_schedule import build_lr_schedule
 from pytorchexample.tasks.registry import get_task
 from pytorchexample.results_logger import ResultsLogger
 
@@ -22,6 +23,8 @@ def main(grid: Grid, context: Context) -> None:
     num_partitions = int(context.run_config["num-partitions"])
     num_groups = int(context.run_config["num-groups"])
     batch_size = int(context.run_config["batch-size"])
+    num_rounds = int(context.run_config["num-server-rounds"])
+    initial_lr = float(context.run_config["learning-rate"])
 
     group_mode = str(context.run_config.get("group-mode", "sequential"))
     manual_specification = context.run_config.get("partition-groups")
@@ -53,8 +56,26 @@ def main(grid: Grid, context: Context) -> None:
         batch_size=batch_size,
     )
 
+    lr_schedule = build_lr_schedule(
+        schedule=str(context.run_config.get("lr-schedule", "constant")),
+        initial_lr=initial_lr,
+        num_rounds=num_rounds,
+        min_lr=float(context.run_config.get("lr-min", 0.0)),
+        decay_rate=float(context.run_config.get("lr-decay-rate", 0.99)),
+        step_size=int(context.run_config.get("lr-step-size", 100)),
+    )
+    log(
+        INFO,
+        "learning rate schedule=%r: round 1 -> %.6g, round %d -> %.6g",
+        str(context.run_config.get("lr-schedule", "constant")),
+        lr_schedule(1),
+        num_rounds,
+        lr_schedule(num_rounds),
+    )
+
     strategy = GroupedFedAvg(
         partition_groups=partition_groups,
+        lr_schedule=lr_schedule,
         fraction_train=float(context.run_config.get("fraction-train", 1.0)),
         fraction_evaluate=float(context.run_config["fraction-evaluate"]),
         min_train_nodes=int(context.run_config.get("min-train-nodes", 2)),
@@ -79,15 +100,16 @@ def main(grid: Grid, context: Context) -> None:
             round_num=server_round,
             accuracy=accuracy,
             loss=loss,
+            # Round 0 is the pre-training evaluation, so no LR was applied yet.
+            learning_rate=lr_schedule(server_round) if server_round >= 1 else None,
         )
 
         return MetricRecord(evaluation_metrics)
 
-    num_rounds = int(context.run_config["num-server-rounds"])
     result = strategy.start(
         grid=grid,
         initial_arrays=initial_arrays,
-        train_config=ConfigRecord({"lr": float(context.run_config["learning-rate"])}),
+        train_config=ConfigRecord({"lr": initial_lr}),
         num_rounds=num_rounds,
         evaluate_fn=global_evaluate,
     )

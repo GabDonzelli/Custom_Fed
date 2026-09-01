@@ -31,26 +31,53 @@ clientapp = "pytorchexample.client_app:app"
 task-name = "stackexchange"
 
 # Keep this value equal to the number of simulated SuperNodes.
-num-partitions = 100
-num-server-rounds = 1000
+num-partitions = 20
+num-server-rounds = 150
 fraction-evaluate = 1.0
 # Fraction of connected clients sampled for training each round.
-# With num-partitions = 100 and fraction-train = 0.1, ~10 clients train per round.
+# With num-partitions = 20 and fraction-train = 0.1, ~2 clients train per round.
 fraction-train = 1.0
 # Minimum number of clients that must be sampled for training each round,
 # regardless of fraction-train (Flower default is 2).
 min-train-nodes = 2
 local-epochs = 5
-learning-rate = 0.1
 batch-size = 32
 save-model = false
 
+# --- Learning-rate schedule -------------------------------------------------
+# "learning-rate" is the rate used in round 1, before any decay. Large-cohort
+# federated training tolerates a large early rate but needs a small one late
+# for the global model to converge (Charles et al., "On Large-Cohort Training
+# for Federated Learning", 2021).
+learning-rate = 0.1
+
+# IMPORTANT for "cosine": the anneal is calibrated against
+# "num-server-rounds" above, so that value must match the run you actually
+# execute. Halving the rounds without updating it leaves the run ending at a
+# still-large learning rate.
+#
+# One of "constant", "cosine", "exponential", "step".
+# - constant:    no decay -- the baseline to compare against.
+# - cosine:      smooth anneal, reaching lr-min exactly at the final round.
+# - exponential: multiplied by lr-decay-rate every round.
+# - step:        multiplied by lr-decay-rate every lr-step-size rounds.
+lr-schedule = "cosine"
+
+# Floor for the learning rate; also the final rate under "cosine".
+lr-min = 0.001
+
+# Only used by "exponential" and "step". Must be in (0, 1].
+lr-decay-rate = 0.99
+
+# Only used by "step": rounds between drops.
+lr-step-size = 100
+
 # How partition-groups are built: "sequential", "random", or "manual".
-# - sequential: contiguous ranges, e.g. 100 partitions / 4 groups -> 0-24,25-49,50-74,75-99.
+# - sequential: contiguous ranges, e.g. 20 partitions / 4 groups -> 0-4,5-9,10-14,15-19.
 # - random: same group sizes as sequential, but partitions shuffled into them.
 # - manual: uses the exact "partition-groups" string below.
 group-mode = "random"
-num-groups = 7
+num-groups = 4
 
 # Only used when group-mode = "random", for reproducible shuffling. Optional.
 group-seed = 42
