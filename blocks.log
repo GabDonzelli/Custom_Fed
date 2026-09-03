@@ -1,0 +1,13 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+partition 0: train 7,885 val 1,987
+partition 1: train 1,498 val 348
+partition 2: train 1,642 val 287
+partition 3: train 464 val 124
+partition 4: train 295 val 98
+partition 5: train 483 val 127
+partition 6: train 328 val 95
+partition 7: train 712 val 209
+partition 8: train 280 val 64
+partition 9: train 289 val 57
+TOTAL train blocks: 13,876
+centralized held-out blocks: 7,433

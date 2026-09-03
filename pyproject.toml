@@ -7,11 +7,18 @@ name = "quickstart-pytorch"
 version = "2.0.0"
 description = "Grouped federated averaging with PyTorch and Flower"
 license = {file = "LICENSE"}
+# Required, not optional: Flower >=1.31 builds an isolated runtime env with
+# `uv sync` instead of using .venv, and without this bound uv picks the newest
+# Python it can find (3.13), where `ray` -- which flwr[simulation] needs -- has
+# no Windows wheel. The simulation then dies with "ray is not available".
+requires-python = ">=3.10,<3.13"
 dependencies = [
     "flwr[simulation]>=1.31.0",
     "flwr-datasets[vision]>=0.6.0",
     "torch==2.10.0",
     "torchvision==0.25.0",
+    # Pretrained language models for the "stackexchange-pretrained" task.
+    "transformers>=4.40.0",
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -28,21 +35,41 @@ clientapp = "pytorchexample.client_app:app"
 
 [tool.flwr.app.config]
 # Select one task implementation from pytorchexample/tasks/registry.py.
-task-name = "stackexchange"
+# - cifar10:                 small CNN trained from scratch, IID partitions.
+# - stackexchange:           in-house LSTM trained from scratch, one author per client.
+# - stackexchange-pretrained: LoRA fine-tuning of pretrained DistilGPT-2, same
+#                            author partitioning. Communicates only ~150k adapter
+#                            weights instead of the 82M base model.
+task-name = "stackexchange-pretrained"
 
-# Keep this value equal to the number of simulated SuperNodes.
-num-partitions = 100
-num-server-rounds = 1000
+# Keep this value equal to the number of simulated SuperNodes. `run_local.ps1`
+# reads it from this file and derives --federation-config num-supernodes from
+# it, so the two cannot drift; if you invoke `flwr run` by hand, pass a matching
+# num-supernodes or every client will raise in _read_partition_config and the
+# run will silently train nothing.
+num-partitions = 10
+num-server-rounds = 20
 fraction-evaluate = 1.0
 # Fraction of connected clients sampled for training each round.
 # With num-partitions = 100 and fraction-train = 0.1, ~10 clients train per round.
 fraction-train = 1.0
 # Minimum number of clients that must be sampled for training each round,
-# regardless of fraction-train (Flower default is 2).
-min-train-nodes = 2
-local-epochs = 5
-learning-rate = 0.1
-batch-size = 32
+# regardless of fraction-train (Flower default is 2). At fraction-train = 1.0
+# this should equal num-partitions: full participation.
+min-train-nodes = 10
+# Same idea for the evaluate phase. Flower defaults both to 2, so a run with
+# fewer clients than this hangs waiting for nodes that will never arrive.
+min-evaluate-nodes = 10
+# 1 local epoch for the pretrained task: with a 250-block cap per client the
+# round is 8 batches per client, and more local work mainly buys client drift.
+local-epochs = 1
+# LoRA adapters are trained with AdamW, which wants a far smaller step than
+# the SGD of the from-scratch tasks. Use ~5e-4 for "stackexchange-pretrained"
+# and ~0.1 for "cifar10" / "stackexchange".
+learning-rate = 5e-4
+# 16 rather than 32 for the pretrained task: same blocks per round, so the same
+# CPU cost, but twice the optimizer steps -- which is what actually moves LoRA.
+batch-size = 16
 save-model = false
 
 # How partition-groups are built: "sequential", "random", or "manual".
@@ -50,12 +77,11 @@ save-model = false
 # - random: same group sizes as sequential, but partitions shuffled into them.
 # - manual: uses the exact "partition-groups" string below.
 group-mode = "random"
-num-groups = 7
+# 10 partitions in 4 groups -> sizes 3, 3, 2, 2 (near-equal, differing by one).
+# With group-mode = "random" the *sizes* are those, but which partitions land in
+# which group is a seeded shuffle -- see group-seed below.
+num-groups = 4
 
 # Only used when group-mode = "random", for reproducible shuffling. Optional.
 group-seed = 42
 
-# Only used when group-mode = "manual". Separate groups with "|" and partition
-# IDs inside a group with ",". Partition IDs are zero-based and must appear
-# exactly once across all groups.
-# partition-groups = "0,1,2|3,4,5|6,7|8,9"

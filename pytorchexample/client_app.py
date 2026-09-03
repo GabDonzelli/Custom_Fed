@@ -31,7 +31,7 @@ def train(msg: Message, context: Context) -> Message:
     """Train the selected task on one dataset partition."""
     task = get_task(str(context.run_config["task-name"]))
     model = task.create_model()
-    model.load_state_dict(msg.content["arrays"].to_torch_state_dict())
+    task.load_federated_arrays(model, msg.content["arrays"].to_torch_state_dict())
 
     partition_id, num_partitions = _read_partition_config(context)
     batch_size = int(context.run_config["batch-size"])
@@ -49,7 +49,7 @@ def train(msg: Message, context: Context) -> Message:
         device=DEVICE,
     )
 
-    model_record = ArrayRecord(model.state_dict())
+    model_record = ArrayRecord(task.get_federated_arrays(model))
     train_metrics["num-examples"] = len(trainloader.dataset)
     train_metrics[PARTITION_ID_KEY] = partition_id
     metric_record = MetricRecord(train_metrics)
@@ -62,7 +62,7 @@ def evaluate(msg: Message, context: Context) -> Message:
     """Evaluate the global model on one local validation partition."""
     task = get_task(str(context.run_config["task-name"]))
     model = task.create_model()
-    model.load_state_dict(msg.content["arrays"].to_torch_state_dict())
+    task.load_federated_arrays(model, msg.content["arrays"].to_torch_state_dict())
 
     partition_id, num_partitions = _read_partition_config(context)
     batch_size = int(context.run_config["batch-size"])

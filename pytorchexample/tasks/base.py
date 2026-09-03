@@ -13,6 +13,19 @@ class FederatedTask(Protocol):
     def create_model(self) -> nn.Module:
         """Create a new model with the architecture required by the task."""
 
+    def get_federated_arrays(self, model: nn.Module) -> dict[str, torch.Tensor]:
+        """Return the tensors this task wants communicated to the server.
+
+        Tasks that train every weight return the whole ``state_dict``. Tasks
+        that fine-tune a frozen pretrained model return only the trainable
+        adapters, which is what keeps federated fine-tuning affordable.
+        """
+
+    def load_federated_arrays(
+        self, model: nn.Module, arrays: dict[str, torch.Tensor]
+    ) -> None:
+        """Load communicated tensors back into a freshly created model."""
+
     def load_partition_data(
         self,
         partition_id: int,

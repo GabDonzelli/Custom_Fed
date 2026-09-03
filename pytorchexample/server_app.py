@@ -47,7 +47,7 @@ def main(grid: Grid, context: Context) -> None:
 
     task = get_task(task_name)
     global_model = task.create_model()
-    initial_arrays = ArrayRecord(global_model.state_dict())
+    initial_arrays = ArrayRecord(task.get_federated_arrays(global_model))
     centralized_testloader = task.load_centralized_data(
         num_partitions=num_partitions,
         batch_size=batch_size,
@@ -58,6 +58,10 @@ def main(grid: Grid, context: Context) -> None:
         fraction_train=float(context.run_config.get("fraction-train", 1.0)),
         fraction_evaluate=float(context.run_config["fraction-evaluate"]),
         min_train_nodes=int(context.run_config.get("min-train-nodes", 2)),
+        # Flower defaults this to 2 as well. Left unset, a run with a single
+        # client trains fine and then hangs forever on "Waiting for nodes to
+        # connect: 1 connected (minimum required: 2)" in the evaluate phase.
+        min_evaluate_nodes=int(context.run_config.get("min-evaluate-nodes", 2)),
         min_available_nodes=num_partitions,
         weighted_by_key="num-examples",
     )
@@ -70,7 +74,7 @@ def main(grid: Grid, context: Context) -> None:
     ) -> MetricRecord:
         """Evaluate the current global model on centralized test data."""
         model = task.create_model()
-        model.load_state_dict(arrays.to_torch_state_dict())
+        task.load_federated_arrays(model, arrays.to_torch_state_dict())
         evaluation_metrics = task.evaluate(model, centralized_testloader, DEVICE)
 
         accuracy = evaluation_metrics.get("accuracy", 0.0)
@@ -79,6 +83,7 @@ def main(grid: Grid, context: Context) -> None:
             round_num=server_round,
             accuracy=accuracy,
             loss=loss,
+            num_clients=strategy.last_train_client_count,
         )
 
         return MetricRecord(evaluation_metrics)
@@ -96,5 +101,8 @@ def main(grid: Grid, context: Context) -> None:
     results_logger.close()
 
     if bool(context.run_config["save-model"]):
+        # Whatever the task chose to federate. For a from-scratch task that is
+        # the full model; for a LoRA task it is only the adapters, which are
+        # useless without reloading the pretrained base they were trained on.
         final_state_dict = result.arrays.to_torch_state_dict()
         torch.save(final_state_dict, "final_model.pt")

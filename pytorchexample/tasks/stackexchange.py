@@ -245,6 +245,16 @@ class StackExchangeTask:
         """Create a fresh Stack Exchange language model."""
         return StackExchangeLSTM()
 
+    def get_federated_arrays(self, model: nn.Module) -> dict[str, torch.Tensor]:
+        """Communicate the whole model: every weight here is trained."""
+        return model.state_dict()
+
+    def load_federated_arrays(
+        self, model: nn.Module, arrays: dict[str, torch.Tensor]
+    ) -> None:
+        """Load a full state dict, requiring it to cover the model exactly."""
+        model.load_state_dict(arrays)
+
     def prefetch(self, num_partitions: int) -> None:
         """Scan and cache the dataset for `num_partitions` ahead of time.
 

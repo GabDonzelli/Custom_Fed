@@ -47,6 +47,16 @@ class Cifar10Task:
         """Create a fresh CIFAR-10 model."""
         return Cifar10Net()
 
+    def get_federated_arrays(self, model: nn.Module) -> dict[str, torch.Tensor]:
+        """Communicate the whole model: every weight here is trained."""
+        return model.state_dict()
+
+    def load_federated_arrays(
+        self, model: nn.Module, arrays: dict[str, torch.Tensor]
+    ) -> None:
+        """Load a full state dict, requiring it to cover the model exactly."""
+        model.load_state_dict(arrays)
+
     def _get_dataset(self, num_partitions: int) -> FederatedDataset:
         """Create one cached FederatedDataset per partition count."""
         if num_partitions not in self._datasets:

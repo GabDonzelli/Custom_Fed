@@ -1,7 +1,7 @@
 """Flower strategy that performs proportional two-level FedAvg."""
 
 from collections.abc import Iterable
-from logging import INFO
+from logging import INFO, WARNING
 
 from flwr.app import ArrayRecord, Message, MetricRecord
 from flwr.common import log
@@ -41,6 +41,12 @@ class GroupedFedAvg(FedAvg):
         # Counts how many training rounds each partition actually replied to.
         self.partition_participation: dict[int, int] = {}
 
+        # How many clients contributed to the most recent training round. Read
+        # by the ServerApp so the results CSV records it: a run where every
+        # client fails otherwise looks identical to a run that legitimately
+        # did not improve.
+        self.last_train_client_count: int = 0
+
     def aggregate_train(
         self,
         server_round: int,
@@ -49,6 +55,19 @@ class GroupedFedAvg(FedAvg):
         """Perform client-to-group and group-to-global aggregation."""
         valid_replies, _ = self._check_and_log_replies(replies, is_train=True)
         if not valid_replies:
+            # Returning None keeps the previous global arrays, so the run walks
+            # on and the centralized metrics repeat verbatim every round. That
+            # reads exactly like "the model did not improve" while actually
+            # meaning "nothing was ever trained" -- so say so loudly.
+            self.last_train_client_count = 0
+            log(
+                WARNING,
+                "round %d trained NOTHING: every client reply was invalid or "
+                "missing, so the global model is unchanged. A common cause is "
+                "'num-supernodes' not matching 'num-partitions', which makes "
+                "every client raise in _read_partition_config.",
+                server_round,
+            )
             return None, None
 
         records_by_group = {group_id: [] for group_id in self.partition_groups}
@@ -112,6 +131,7 @@ class GroupedFedAvg(FedAvg):
             all_records,
             self.weighted_by_key,
         )
+        self.last_train_client_count = len(received_partitions)
 
         self.group_history[server_round] = {
             group.group_id: {
