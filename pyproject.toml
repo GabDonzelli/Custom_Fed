@@ -36,6 +36,9 @@ clientapp = "pytorchexample.client_app:app"
 [tool.flwr.app.config]
 # Select one task implementation from pytorchexample/tasks/registry.py.
 # - cifar10:                 small CNN trained from scratch, IID partitions.
+# - cifar10-pretrained:      federated linear probe on a frozen, ImageNet-
+#                            pretrained ResNet-18. Communicates only the 5,130
+#                            weights of the linear head. Wants learning-rate = 1.0.
 # - stackexchange:           in-house LSTM trained from scratch, one author per client.
 # - stackexchange-pretrained: LoRA fine-tuning of pretrained DistilGPT-2, same
 #                            author partitioning. Communicates only ~150k adapter
@@ -49,17 +52,24 @@ task-name = "stackexchange-pretrained"
 # run will silently train nothing.
 num-partitions = 10
 num-server-rounds = 20
-fraction-evaluate = 1.0
+# PARTIAL PARTICIPATION. 0.7 of 10 partitions -> 7 clients sampled per round,
+# redrawn independently every round, for both the train and the evaluate phase.
+fraction-evaluate = 0.7
 # Fraction of connected clients sampled for training each round.
 # With num-partitions = 100 and fraction-train = 0.1, ~10 clients train per round.
-fraction-train = 1.0
+fraction-train = 0.7
 # Minimum number of clients that must be sampled for training each round,
-# regardless of fraction-train (Flower default is 2). At fraction-train = 1.0
-# this should equal num-partitions: full participation.
-min-train-nodes = 10
+# regardless of fraction-train (Flower default is 2).
+#
+# THIS IS THE ONE THAT SILENTLY CANCELS PARTIAL PARTICIPATION. Flower samples
+# `max(int(num_connected * fraction_train), min_train_nodes)` -- so leaving this
+# at 10 while setting fraction-train = 0.7 still samples all 10 clients, and the
+# run looks like partial participation in the config while behaving exactly like
+# full participation. Keep it equal to round(fraction-train * num-partitions).
+min-train-nodes = 7
 # Same idea for the evaluate phase. Flower defaults both to 2, so a run with
 # fewer clients than this hangs waiting for nodes that will never arrive.
-min-evaluate-nodes = 10
+min-evaluate-nodes = 7
 # 1 local epoch for the pretrained task: with a 250-block cap per client the
 # round is 8 batches per client, and more local work mainly buys client drift.
 local-epochs = 1

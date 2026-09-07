@@ -106,6 +106,24 @@ class GroupedFedAvg(FedAvg):
 
         group_aggregations: list[GroupAggregation] = []
         for group_id in sorted(self.partition_groups):
+            if not records_by_group[group_id]:
+                # Expected as soon as fraction_train < 1.0: the server samples
+                # clients without regard to grouping, so a whole group can go
+                # unsampled in a round. With 10 partitions in 4 groups and 7
+                # sampled, that happens in roughly 15% of rounds. Such a group
+                # simply does not contribute to this round's global model --
+                # aggregating it would mean inventing a model for it -- and the
+                # remaining groups still carry their own example counts, so the
+                # group-to-global weighting stays proportional to the data that
+                # actually trained.
+                log(
+                    INFO,
+                    "round %d, group %d: no client sampled, group skipped",
+                    server_round,
+                    group_id,
+                )
+                continue
+
             group = aggregate_records_in_group(
                 group_id=group_id,
                 records=records_by_group[group_id],
