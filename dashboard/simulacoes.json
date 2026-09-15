@@ -1,0 +1,1873 @@
+{
+  "_comment": "Manifesto do painel. Cada entrada de `simulacoes` e uma simulacao completa, com a propria configuracao. `project_dir` e resolvido a partir da pasta deste arquivo, entao um caminho relativo mantem o repositorio portavel -- nada aqui depende de onde o projeto esta clonado. Os CSVs sao apenas lidos, nunca escritos.",
+  "project_dir": "dados",
+  "titulo": "Aprendizado federado",
+  "subtitulo": "Painel de simulações",
+  "grupos": [
+    {
+      "id": "experimento",
+      "label": "Experimento semeado — o peso do grupo",
+      "label_en": "Seeded experiment — the group weight"
+    },
+    {
+      "id": "regua",
+      "label": "Régua do ruído — sem semente, não conclui nada",
+      "label_en": "Noise ruler — unseeded, concludes nothing"
+    }
+  ],
+  "simulacoes": [
+    {
+      "id": "full-10c-20r",
+      "grupo": "regua",
+      "label": "FedAvg agrupado — total · SEM semente",
+      "compare_to": "partial07-10c-20r",
+      "config": {
+        "clients": 10,
+        "rounds": 20,
+        "groups": 4,
+        "fraction_train": 1.0,
+        "fraction_evaluate": 1.0,
+        "strategy": "Grouped FedAvg",
+        "seed": null,
+        "extra": [
+          {
+            "k": "equivale a",
+            "k_en": "equivalent to",
+            "v": "FedAvg puro",
+            "v_en": "plain FedAvg"
+          },
+          {
+            "k": "min-train-nodes",
+            "v": "10",
+            "k_en": "min-train-nodes",
+            "v_en": "10"
+          },
+          {
+            "k": "min-evaluate-nodes",
+            "v": "10",
+            "k_en": "min-evaluate-nodes",
+            "v_en": "10"
+          },
+          {
+            "k": "grupos vazios",
+            "v": "0 de 80 rounds medidos",
+            "k_en": "empty groups",
+            "v_en": "0 of 80 rounds measured"
+          },
+          {
+            "k": "determinismo",
+            "v": "SEM semente",
+            "k_en": "determinism",
+            "v_en": "NO seed"
+          },
+          {
+            "k": "algoritmo efetivo",
+            "v": "≡ FedAvg puro (a média de dois níveis telescopa)",
+            "k_en": "algoritmo efetivo",
+            "v_en": "≡ FedAvg puro (a média de dois níveis telescopa)"
+          }
+        ],
+        "strategy_en": "Grouped FedAvg"
+      },
+      "summary": "Todos os 10 clients treinam e avaliam em todos os rounds. É a referência contra a qual qualquer regime de participação parcial é lido.",
+      "notes": [
+        {
+          "title": "Esta simulação é FedAvg puro, com outro nome",
+          "title_en": "This simulation is plain FedAvg under another name",
+          "body": "A agregação em dois níveis com peso proporcional aos exemplos <b>telescopa</b>: o <code>N_g</code> que pondera o grupo cancela com o <code>N_g</code> que normaliza a média dentro dele, e sobra a média ponderada de todos os clients — que é o FedAvg puro. Agrupar aqui é apenas colocar parênteses numa soma. Verificado numericamente (<code>1e-16</code>) e rodando o treino inteiro com a mesma semente (idêntico até a última casa). Então <b>não espere</b> que esta simulação difira das outras marcadas com o mesmo <i>equivale a</i>: quando diferem, a diferença é ruído de execução, não método.",
+          "body_en": "Two-level aggregation with example-proportional weights <b>telescopes</b>: the <code>N_g</code> weighting the group cancels the <code>N_g</code> normalizing the mean inside it, leaving the example-weighted mean over all clients — which is plain FedAvg. Grouping here is just putting parentheses around a sum. Verified numerically (<code>1e-16</code>) and by running the full training with the same seed (identical to the last digit). So <b>do not expect</b> this simulation to differ from the others tagged with the same <i>equivalent to</i>: when they differ, the difference is run-to-run noise, not method."
+        },
+        {
+          "title": "Por que esta simulação é a régua",
+          "body": "Sem sorteio de clients não há variância de amostragem entre rounds: a curva mostra o que o método faz quando recebe todos os dados em todo round. Qualquer degradação vista em outra simulação com o mesmo modelo e os mesmos hiperparâmetros vem da mudança de configuração, não do modelo."
+        },
+        {
+          "title": "Agrupar não muda o modelo — nem aqui, nem em participação parcial",
+          "body": "A agregação em dois níveis pondera os clients pelos exemplos dentro do grupo e depois pondera os grupos pelos exemplos deles. Essa composição se cancela: o resultado é exatamente a média ponderada por exemplos de todos os clients sorteados, que é o FedAvg puro. Verificado numericamente em 07/09/2026 contra o <code>TrackedFedAvg</code> da branch <code>baseline-fedavg</code>, com os grupos reais [2,3,7] [5,6,8] [4,9] [0,1]: diferença máxima de <code>1e-16</code> (precisão de máquina) em participação total, em parcial 7/10, e com um ou dois grupos vazios. Pular um grupo vazio não quebra a identidade — um grupo sem client tem peso zero de qualquer forma. Consequência: nesta implementação o agrupamento é contabilidade, não método; ele muda o que aparece no log, não o modelo global."
+        },
+        {
+          "title": "Os dois painéis de CIFAR-10 não são medidos no mesmo conjunto de teste",
+          "body": "A CNN do zero é avaliada nas <code>10.000</code> imagens do test split completo; o probe da ResNet-18 congelada, em <code>1.000</code> (o <code>MAX_CENTRALIZED_IMAGES = 1000</code> existe porque cada imagem tem de atravessar o backbone congelado na CPU). Consequência prática: a accuracy do probe tem resolução de 0,1 p.p. e erro padrão de <b>≈1,2 p.p.</b>, então diferenças de menos de ~2 p.p. entre simulações nesse painel são ruído de amostragem do conjunto de teste, não efeito da configuração. No painel da CNN o erro padrão é ≈0,5 p.p."
+        }
+      ],
+      "runs": [
+        {
+          "id": "cifar10",
+          "origin": "scratch",
+          "label": "CIFAR-10 — CNN do zero",
+          "metric": "Accuracy de classificação (10 classes)",
+          "chance": 0.1,
+          "csv": "fl_results_2026_09_04_142243.csv",
+          "eval_set": "10.000 imagens (test split completo do CIFAR-10)",
+          "queued": false,
+          "hyper": {
+            "Modelo": "CNN do quickstart Flower — conv(3→6, 5×5) · maxpool 2×2 · conv(6→16, 5×5) · maxpool 2×2 · fc 400→120→84→10",
+            "Pesos iniciais": "aleatórios (treinada do zero)",
+            "Otimizador": "SGD, momentum 0,9",
+            "Learning rate": "0,1",
+            "Batch size": "32",
+            "Épocas locais": "1",
+            "Dados por client": "4.000 imagens (partição de 5.000, split 80/20)",
+            "Particionamento": "IID (IidPartitioner)",
+            "Pré-processamento": "ToTensor · Normalize(0,5 | 0,5)",
+            "Comunicado por round": "62.006 pesos — o modelo inteiro"
+          },
+          "label_en": "CIFAR-10 — CNN from scratch",
+          "metric_en": "Classification accuracy (10 classes)",
+          "eval_set_en": "10,000 images (full CIFAR-10 test split)",
+          "hyper_en": {
+            "Model": "Flower quickstart CNN — conv(3→6, 5×5) · maxpool 2×2 · conv(6→16, 5×5) · maxpool 2×2 · fc 400→120→84→10",
+            "Initial weights": "random (trained from scratch)",
+            "Optimizer": "SGD, momentum 0.9",
+            "Learning rate": "0.1",
+            "Batch size": "32",
+            "Local epochs": "1",
+            "Data per client": "4,000 images (5,000-image partition, 80/20 split)",
+            "Partitioning": "IID (IidPartitioner)",
+            "Preprocessing": "ToTensor · Normalize(0.5 | 0.5)",
+            "Communicated per round": "62,006 weights — the whole model"
+          }
+        },
+        {
+          "id": "cifar10-pretrained",
+          "origin": "pretrained",
+          "label": "CIFAR-10 — ResNet-18 congelada",
+          "metric": "Accuracy de classificação (10 classes)",
+          "chance": 0.1,
+          "csv": "fl_results_2026_09_04_222506.csv",
+          "eval_set": "1.000 imagens (MAX_CENTRALIZED_IMAGES = 1000)",
+          "queued": true,
+          "hyper": {
+            "Modelo": "ResNet-18 da torchvision congelada (11,2M pesos, em eval, sem a cabeça ImageNet) → features 512-d normalizadas em L2 → head treinável nn.Linear(512, 10)",
+            "Pesos iniciais": "ResNet18_Weights.IMAGENET1K_V1 (backbone) · head aleatório",
+            "Otimizador": "SGD, momentum 0,9",
+            "Learning rate": "1,0",
+            "Batch size": "32",
+            "Épocas locais": "1",
+            "Dados por client": "500 imagens (MAX_IMAGES_PER_CLIENT)",
+            "Particionamento": "IID (IidPartitioner)",
+            "Pré-processamento": "Resize 224 · Normalize ImageNet (0,485/0,456/0,406)",
+            "Comunicado por round": "5.130 pesos — só o head linear"
+          },
+          "label_en": "CIFAR-10 — frozen ResNet-18",
+          "metric_en": "Classification accuracy (10 classes)",
+          "eval_set_en": "1,000 images (MAX_CENTRALIZED_IMAGES = 1000)",
+          "hyper_en": {
+            "Model": "torchvision ResNet-18, frozen (11.2M weights, in eval, ImageNet head removed) → L2-normalized 512-d features → trainable nn.Linear(512, 10) head",
+            "Initial weights": "ResNet18_Weights.IMAGENET1K_V1 (backbone) · random head",
+            "Optimizer": "SGD, momentum 0.9",
+            "Learning rate": "1.0",
+            "Batch size": "32",
+            "Local epochs": "1",
+            "Data per client": "500 images (MAX_IMAGES_PER_CLIENT)",
+            "Partitioning": "IID (IidPartitioner)",
+            "Preprocessing": "Resize 224 · ImageNet Normalize (0.485/0.456/0.406)",
+            "Communicated per round": "5,130 weights — the linear head only"
+          }
+        },
+        {
+          "id": "stackexchange",
+          "origin": "scratch",
+          "label": "Stack Exchange — LSTM do zero",
+          "metric": "Accuracy de próxima palavra",
+          "chance": null,
+          "csv": "fl_results_2026_09_04_144336.csv",
+          "eval_set": "tokens dos autores reservados para avaliação",
+          "queued": false,
+          "hyper": {
+            "Modelo": "LSTM in-house — Embedding(5.000, 128, padding_idx=0) · LSTM(128→256, batch_first) · Linear(256→5.000)",
+            "Pesos iniciais": "aleatórios (treinada do zero)",
+            "Otimizador": "SGD, momentum 0,9",
+            "Learning rate": "0,1",
+            "Batch size": "32",
+            "Épocas locais": "1",
+            "Dados por client": "respostas de um autor (SEQ_LEN 32, vocab 5.000)",
+            "Particionamento": "non-IID — um autor por client",
+            "Pré-processamento": "tokenização própria · pad/trunca em 32 tokens",
+            "Comunicado por round": "2.320.264 pesos — o modelo inteiro"
+          },
+          "label_en": "Stack Exchange — LSTM from scratch",
+          "metric_en": "Next-word accuracy",
+          "eval_set_en": "tokens from the held-out authors",
+          "hyper_en": {
+            "Model": "in-house LSTM — Embedding(5,000, 128, padding_idx=0) · LSTM(128→256, batch_first) · Linear(256→5,000)",
+            "Initial weights": "random (trained from scratch)",
+            "Optimizer": "SGD, momentum 0.9",
+            "Learning rate": "0.1",
+            "Batch size": "32",
+            "Local epochs": "1",
+            "Data per client": "one author's answers (SEQ_LEN 32, vocab 5,000)",
+            "Partitioning": "non-IID — one author per client",
+            "Preprocessing": "in-house tokenizer · pad/truncate to 32 tokens",
+            "Communicated per round": "2,320,264 weights — the whole model"
+          }
+        },
+        {
+          "id": "stackexchange-pretrained",
+          "origin": "pretrained",
+          "label": "Stack Exchange — LoRA DistilGPT-2",
+          "metric": "Accuracy de próximo token",
+          "chance": null,
+          "csv": "fl_results_2026_09_04_145657.csv",
+          "eval_set": "800 blocos de 64 tokens (MAX_CENTRALIZED_BLOCKS = 800)",
+          "queued": false,
+          "hyper": {
+            "Modelo": "DistilGPT-2 congelado (81.912.576 pesos) + adapters LoRA rank 8, α 16, aplicados em attn.c_attn (12 tensores)",
+            "Pesos iniciais": "distilgpt2 do Hugging Face · LoRA com B zerado",
+            "Otimizador": "AdamW",
+            "Learning rate": "5e-4",
+            "Batch size": "16",
+            "Épocas locais": "1",
+            "Dados por client": "250 blocos de 64 tokens (MAX_BLOCKS_PER_CLIENT)",
+            "Particionamento": "non-IID — um autor por client",
+            "Pré-processamento": "tokenizer do DistilGPT-2 · blocos de 64 tokens",
+            "Comunicado por round": "147.456 pesos — só os adapters LoRA"
+          },
+          "label_en": "Stack Exchange — LoRA DistilGPT-2",
+          "metric_en": "Next-token accuracy",
+          "eval_set_en": "800 blocks of 64 tokens (MAX_CENTRALIZED_BLOCKS = 800)",
+          "hyper_en": {
+            "Model": "frozen DistilGPT-2 (81,912,576 weights) + LoRA adapters rank 8, α 16, on attn.c_attn (12 tensors)",
+            "Initial weights": "distilgpt2 from Hugging Face · LoRA with B zeroed",
+            "Optimizer": "AdamW",
+            "Learning rate": "5e-4",
+            "Batch size": "16",
+            "Local epochs": "1",
+            "Data per client": "250 blocks of 64 tokens (MAX_BLOCKS_PER_CLIENT)",
+            "Partitioning": "non-IID — one author per client",
+            "Preprocessing": "DistilGPT-2 tokenizer · 64-token blocks",
+            "Communicated per round": "147,456 weights — the LoRA adapters only"
+          }
+        }
+      ],
+      "label_en": "Grouped FedAvg — full · NO seed",
+      "summary_en": "All 10 clients train and evaluate in every round. This is the reference any partial-participation regime is read against."
+    },
+    {
+      "id": "partial07-10c-20r",
+      "grupo": "regua",
+      "label": "FedAvg agrupado — parcial 0,7 · SEM semente",
+      "compare_to": "full-10c-20r",
+      "config": {
+        "clients": 10,
+        "rounds": 20,
+        "groups": 4,
+        "fraction_train": 0.7,
+        "fraction_evaluate": 0.7,
+        "strategy": "Grouped FedAvg",
+        "seed": null,
+        "extra": [
+          {
+            "k": "equivale a",
+            "k_en": "equivalent to",
+            "v": "FedAvg puro",
+            "v_en": "plain FedAvg"
+          },
+          {
+            "k": "min-train-nodes",
+            "v": "7",
+            "k_en": "min-train-nodes",
+            "v_en": "7"
+          },
+          {
+            "k": "min-evaluate-nodes",
+            "v": "7",
+            "k_en": "min-evaluate-nodes",
+            "v_en": "7"
+          },
+          {
+            "k": "grupos vazios",
+            "v": "12 de 80 rounds medidos (15%)",
+            "k_en": "empty groups",
+            "v_en": "12 of 80 rounds measured (15%)"
+          },
+          {
+            "k": "determinismo",
+            "v": "SEM semente",
+            "k_en": "determinism",
+            "v_en": "NO seed"
+          },
+          {
+            "k": "algoritmo efetivo",
+            "v": "≡ FedAvg puro (a média de dois níveis telescopa)",
+            "k_en": "algoritmo efetivo",
+            "v_en": "≡ FedAvg puro (a média de dois níveis telescopa)"
+          }
+        ],
+        "strategy_en": "Grouped FedAvg"
+      },
+      "summary": "7 dos 10 clients sorteados por round, sorteio novo a cada round, nas fases de treino e de avaliação.",
+      "notes": [
+        {
+          "title": "Esta simulação é FedAvg puro, com outro nome",
+          "title_en": "This simulation is plain FedAvg under another name",
+          "body": "A agregação em dois níveis com peso proporcional aos exemplos <b>telescopa</b>: o <code>N_g</code> que pondera o grupo cancela com o <code>N_g</code> que normaliza a média dentro dele, e sobra a média ponderada de todos os clients — que é o FedAvg puro. Agrupar aqui é apenas colocar parênteses numa soma. Verificado numericamente (<code>1e-16</code>) e rodando o treino inteiro com a mesma semente (idêntico até a última casa). Então <b>não espere</b> que esta simulação difira das outras marcadas com o mesmo <i>equivale a</i>: quando diferem, a diferença é ruído de execução, não método.",
+          "body_en": "Two-level aggregation with example-proportional weights <b>telescopes</b>: the <code>N_g</code> weighting the group cancels the <code>N_g</code> normalizing the mean inside it, leaving the example-weighted mean over all clients — which is plain FedAvg. Grouping here is just putting parentheses around a sum. Verified numerically (<code>1e-16</code>) and by running the full training with the same seed (identical to the last digit). So <b>do not expect</b> this simulation to differ from the others tagged with the same <i>equivalent to</i>: when they differ, the difference is run-to-run noise, not method."
+        },
+        {
+          "title": "O que a participação parcial faz, concretamente",
+          "body": "A cada round o servidor sorteia 7 dos 10 clients para treinar e 7 para avaliar — sorteio independente, refeito em todo round. Um client fora do sorteio não treina naquele round e não contribui para o modelo global. A coluna <code>num_clients_trained</code> do CSV é a prova de que isso aconteceu: ela lê 7, não 10."
+        },
+        {
+          "title": "Agrupar não muda o modelo — nem aqui, nem em participação parcial",
+          "body": "A agregação em dois níveis pondera os clients pelos exemplos dentro do grupo e depois pondera os grupos pelos exemplos deles. Essa composição se cancela: o resultado é exatamente a média ponderada por exemplos de todos os clients sorteados, que é o FedAvg puro. Verificado numericamente em 07/09/2026 contra o <code>TrackedFedAvg</code> da branch <code>baseline-fedavg</code>, com os grupos reais [2,3,7] [5,6,8] [4,9] [0,1]: diferença máxima de <code>1e-16</code> (precisão de máquina) em participação total, em parcial 7/10, e com um ou dois grupos vazios. Pular um grupo vazio não quebra a identidade — um grupo sem client tem peso zero de qualquer forma. Consequência: nesta implementação o agrupamento é contabilidade, não método; ele muda o que aparece no log, não o modelo global."
+        },
+        {
+          "title": "A armadilha que quase anula o experimento",
+          "body": "O Flower sorteia <code>max(int(clients_conectados × fraction_train), min_train_nodes)</code>. Com <code>min-train-nodes = 10</code> herdado da configuração de participação total, pôr <code>fraction-train = 0.7</code> não muda nada: os 10 clients são sorteados de todo jeito e a run mente na configuração. Por isso os mínimos foram baixados para 7, junto com as frações."
+        },
+        {
+          "title": "Grupo vazio: um caso que só aparece com participação parcial",
+          "body": "O sorteio ignora os grupos. Com 10 partições em 4 grupos (tamanhos 3, 3, 2, 2) e 7 clients sorteados, algum grupo fica sem nenhum client em cerca de 15% dos rounds — ou seja, em quase toda run de 20 rounds. O código original levantava <code>ValueError</code> nesse caso e a run morria; agora o grupo sem client é simplesmente pulado, e a agregação grupo para global pesa apenas os grupos que treinaram."
+        },
+        {
+          "title": "Os dois painéis de CIFAR-10 não são medidos no mesmo conjunto de teste",
+          "body": "A CNN do zero é avaliada nas <code>10.000</code> imagens do test split completo; o probe da ResNet-18 congelada, em <code>1.000</code> (o <code>MAX_CENTRALIZED_IMAGES = 1000</code> existe porque cada imagem tem de atravessar o backbone congelado na CPU). Consequência prática: a accuracy do probe tem resolução de 0,1 p.p. e erro padrão de <b>≈1,2 p.p.</b>, então diferenças de menos de ~2 p.p. entre simulações nesse painel são ruído de amostragem do conjunto de teste, não efeito da configuração. No painel da CNN o erro padrão é ≈0,5 p.p."
+        }
+      ],
+      "runs": [
+        {
+          "id": "cifar10",
+          "origin": "scratch",
+          "label": "CIFAR-10 — CNN do zero",
+          "metric": "Accuracy de classificação (10 classes)",
+          "chance": 0.1,
+          "csv": "fl_results_2026_09_04_194123.csv",
+          "eval_set": "10.000 imagens (test split completo do CIFAR-10)",
+          "queued": true,
+          "hyper": {
+            "Modelo": "CNN do quickstart Flower — conv(3→6, 5×5) · maxpool 2×2 · conv(6→16, 5×5) · maxpool 2×2 · fc 400→120→84→10",
+            "Pesos iniciais": "aleatórios (treinada do zero)",
+            "Otimizador": "SGD, momentum 0,9",
+            "Learning rate": "0,1",
+            "Batch size": "32",
+            "Épocas locais": "1",
+            "Dados por client": "4.000 imagens (partição de 5.000, split 80/20)",
+            "Particionamento": "IID (IidPartitioner)",
+            "Pré-processamento": "ToTensor · Normalize(0,5 | 0,5)",
+            "Comunicado por round": "62.006 pesos — o modelo inteiro"
+          },
+          "label_en": "CIFAR-10 — CNN from scratch",
+          "metric_en": "Classification accuracy (10 classes)",
+          "eval_set_en": "10,000 images (full CIFAR-10 test split)",
+          "hyper_en": {
+            "Model": "Flower quickstart CNN — conv(3→6, 5×5) · maxpool 2×2 · conv(6→16, 5×5) · maxpool 2×2 · fc 400→120→84→10",
+            "Initial weights": "random (trained from scratch)",
+            "Optimizer": "SGD, momentum 0.9",
+            "Learning rate": "0.1",
+            "Batch size": "32",
+            "Local epochs": "1",
+            "Data per client": "4,000 images (5,000-image partition, 80/20 split)",
+            "Partitioning": "IID (IidPartitioner)",
+            "Preprocessing": "ToTensor · Normalize(0.5 | 0.5)",
+            "Communicated per round": "62,006 weights — the whole model"
+          }
+        },
+        {
+          "id": "cifar10-pretrained",
+          "origin": "pretrained",
+          "label": "CIFAR-10 — ResNet-18 congelada",
+          "metric": "Accuracy de classificação (10 classes)",
+          "chance": 0.1,
+          "csv": "fl_results_2026_09_04_200057.csv",
+          "eval_set": "1.000 imagens (MAX_CENTRALIZED_IMAGES = 1000)",
+          "queued": true,
+          "hyper": {
+            "Modelo": "ResNet-18 da torchvision congelada (11,2M pesos, em eval, sem a cabeça ImageNet) → features 512-d normalizadas em L2 → head treinável nn.Linear(512, 10)",
+            "Pesos iniciais": "ResNet18_Weights.IMAGENET1K_V1 (backbone) · head aleatório",
+            "Otimizador": "SGD, momentum 0,9",
+            "Learning rate": "1,0",
+            "Batch size": "32",
+            "Épocas locais": "1",
+            "Dados por client": "500 imagens (MAX_IMAGES_PER_CLIENT)",
+            "Particionamento": "IID (IidPartitioner)",
+            "Pré-processamento": "Resize 224 · Normalize ImageNet (0,485/0,456/0,406)",
+            "Comunicado por round": "5.130 pesos — só o head linear"
+          },
+          "label_en": "CIFAR-10 — frozen ResNet-18",
+          "metric_en": "Classification accuracy (10 classes)",
+          "eval_set_en": "1,000 images (MAX_CENTRALIZED_IMAGES = 1000)",
+          "hyper_en": {
+            "Model": "torchvision ResNet-18, frozen (11.2M weights, in eval, ImageNet head removed) → L2-normalized 512-d features → trainable nn.Linear(512, 10) head",
+            "Initial weights": "ResNet18_Weights.IMAGENET1K_V1 (backbone) · random head",
+            "Optimizer": "SGD, momentum 0.9",
+            "Learning rate": "1.0",
+            "Batch size": "32",
+            "Local epochs": "1",
+            "Data per client": "500 images (MAX_IMAGES_PER_CLIENT)",
+            "Partitioning": "IID (IidPartitioner)",
+            "Preprocessing": "Resize 224 · ImageNet Normalize (0.485/0.456/0.406)",
+            "Communicated per round": "5,130 weights — the linear head only"
+          }
+        },
+        {
+          "id": "stackexchange",
+          "origin": "scratch",
+          "label": "Stack Exchange — LSTM do zero",
+          "metric": "Accuracy de próxima palavra",
+          "chance": null,
+          "csv": "fl_results_2026_09_04_200922.csv",
+          "eval_set": "tokens dos autores reservados para avaliação",
+          "queued": true,
+          "hyper": {
+            "Modelo": "LSTM in-house — Embedding(5.000, 128, padding_idx=0) · LSTM(128→256, batch_first) · Linear(256→5.000)",
+            "Pesos iniciais": "aleatórios (treinada do zero)",
+            "Otimizador": "SGD, momentum 0,9",
+            "Learning rate": "0,1",
+            "Batch size": "32",
+            "Épocas locais": "1",
+            "Dados por client": "respostas de um autor (SEQ_LEN 32, vocab 5.000)",
+            "Particionamento": "non-IID — um autor por client",
+            "Pré-processamento": "tokenização própria · pad/trunca em 32 tokens",
+            "Comunicado por round": "2.320.264 pesos — o modelo inteiro"
+          },
+          "label_en": "Stack Exchange — LSTM from scratch",
+          "metric_en": "Next-word accuracy",
+          "eval_set_en": "tokens from the held-out authors",
+          "hyper_en": {
+            "Model": "in-house LSTM — Embedding(5,000, 128, padding_idx=0) · LSTM(128→256, batch_first) · Linear(256→5,000)",
+            "Initial weights": "random (trained from scratch)",
+            "Optimizer": "SGD, momentum 0.9",
+            "Learning rate": "0.1",
+            "Batch size": "32",
+            "Local epochs": "1",
+            "Data per client": "one author's answers (SEQ_LEN 32, vocab 5,000)",
+            "Partitioning": "non-IID — one author per client",
+            "Preprocessing": "in-house tokenizer · pad/truncate to 32 tokens",
+            "Communicated per round": "2,320,264 weights — the whole model"
+          }
+        },
+        {
+          "id": "stackexchange-pretrained",
+          "origin": "pretrained",
+          "label": "Stack Exchange — LoRA DistilGPT-2",
+          "metric": "Accuracy de próximo token",
+          "chance": null,
+          "csv": "fl_results_2026_09_04_202820.csv",
+          "eval_set": "800 blocos de 64 tokens (MAX_CENTRALIZED_BLOCKS = 800)",
+          "queued": true,
+          "hyper": {
+            "Modelo": "DistilGPT-2 congelado (81.912.576 pesos) + adapters LoRA rank 8, α 16, aplicados em attn.c_attn (12 tensores)",
+            "Pesos iniciais": "distilgpt2 do Hugging Face · LoRA com B zerado",
+            "Otimizador": "AdamW",
+            "Learning rate": "5e-4",
+            "Batch size": "16",
+            "Épocas locais": "1",
+            "Dados por client": "250 blocos de 64 tokens (MAX_BLOCKS_PER_CLIENT)",
+            "Particionamento": "non-IID — um autor por client",
+            "Pré-processamento": "tokenizer do DistilGPT-2 · blocos de 64 tokens",
+            "Comunicado por round": "147.456 pesos — só os adapters LoRA"
+          },
+          "label_en": "Stack Exchange — LoRA DistilGPT-2",
+          "metric_en": "Next-token accuracy",
+          "eval_set_en": "800 blocks of 64 tokens (MAX_CENTRALIZED_BLOCKS = 800)",
+          "hyper_en": {
+            "Model": "frozen DistilGPT-2 (81,912,576 weights) + LoRA adapters rank 8, α 16, on attn.c_attn (12 tensors)",
+            "Initial weights": "distilgpt2 from Hugging Face · LoRA with B zeroed",
+            "Optimizer": "AdamW",
+            "Learning rate": "5e-4",
+            "Batch size": "16",
+            "Local epochs": "1",
+            "Data per client": "250 blocks of 64 tokens (MAX_BLOCKS_PER_CLIENT)",
+            "Partitioning": "non-IID — one author per client",
+            "Preprocessing": "DistilGPT-2 tokenizer · 64-token blocks",
+            "Communicated per round": "147,456 weights — the LoRA adapters only"
+          }
+        }
+      ],
+      "label_en": "Grouped FedAvg — partial 0.7 · NO seed",
+      "summary_en": "7 of the 10 clients are sampled per round, redrawn independently every round, for both the train and the evaluate phase."
+    },
+    {
+      "id": "baseline-full-10c-20r",
+      "grupo": "regua",
+      "label": "FedAvg sem grupos — total · SEM semente",
+      "compare_to": "full-10c-20r",
+      "config": {
+        "clients": 10,
+        "rounds": 20,
+        "fraction_train": 1.0,
+        "fraction_evaluate": 1.0,
+        "strategy": "FedAvg puro (TrackedFedAvg)",
+        "extra": [
+          {
+            "k": "min-train-nodes",
+            "v": "10",
+            "k_en": "min-train-nodes",
+            "v_en": "10"
+          },
+          {
+            "k": "min-evaluate-nodes",
+            "v": "10",
+            "k_en": "min-evaluate-nodes",
+            "v_en": "10"
+          },
+          {
+            "k": "agrupamento",
+            "v": "nenhum",
+            "k_en": "grouping",
+            "v_en": "none"
+          },
+          {
+            "k": "branch",
+            "v": "baseline-fedavg-pretrained",
+            "k_en": "branch",
+            "v_en": "baseline-fedavg-pretrained"
+          },
+          {
+            "k": "determinismo",
+            "v": "SEM semente",
+            "k_en": "determinism",
+            "v_en": "NO seed"
+          },
+          {
+            "k": "algoritmo efetivo",
+            "v": "≡ FedAvg puro (a média de dois níveis telescopa)",
+            "k_en": "algoritmo efetivo",
+            "v_en": "≡ FedAvg puro (a média de dois níveis telescopa)"
+          }
+        ],
+        "strategy_en": "Plain FedAvg (TrackedFedAvg)"
+      },
+      "summary": "FedAvg puro, sem agrupamento: uma única média ponderada por exemplos sobre todos os 10 clients. Mesmas tarefas, mesmos hiperparâmetros e mesmo código das runs agrupadas — só a estratégia muda.",
+      "notes": [
+        {
+          "title": "Esta simulação NÃO é um teste da estratégia — é uma medida de variância",
+          "body": "A agregação agrupada é algebricamente idêntica ao FedAvg puro (verificado em 07/09/2026: diferença máxima de <code>1e-16</code>), então, dados os mesmos updates dos clients, as duas produzem o mesmo modelo. Mas o projeto <b>não tem semente nenhuma</b> — nenhum <code>manual_seed</code> para a inicialização do modelo nem para os DataLoaders — então duas runs nunca recebem os mesmos updates. O round 0, avaliado antes de qualquer treino, já sai diferente. O que a diferença entre esta simulação e a agrupada correspondente mede, portanto, é <b>quanto duas execuções equivalentes divergem</b>. Use isso como régua de ruído antes de chamar de efeito qualquer diferença entre configurações."
+        }
+      ],
+      "runs": [
+        {
+          "id": "cifar10-pretrained",
+          "origin": "pretrained",
+          "label": "CIFAR-10 — ResNet-18 congelada",
+          "metric": "Accuracy de classificação (10 classes)",
+          "chance": 0.1,
+          "csv": "fl_results_2026_09_07_144034.csv",
+          "eval_set": "1.000 imagens (MAX_CENTRALIZED_IMAGES = 1000)",
+          "queued": true,
+          "hyper": {
+            "Modelo": "ResNet-18 da torchvision congelada (11,2M pesos, em eval, sem a cabeça ImageNet) → features 512-d normalizadas em L2 → head treinável nn.Linear(512, 10)",
+            "Pesos iniciais": "ResNet18_Weights.IMAGENET1K_V1 (backbone) · head aleatório",
+            "Otimizador": "SGD, momentum 0,9",
+            "Learning rate": "1,0",
+            "Batch size": "32",
+            "Épocas locais": "1",
+            "Dados por client": "500 imagens (MAX_IMAGES_PER_CLIENT)",
+            "Particionamento": "IID (IidPartitioner)",
+            "Pré-processamento": "Resize 224 · Normalize ImageNet (0,485/0,456/0,406)",
+            "Comunicado por round": "5.130 pesos — só o head linear"
+          },
+          "label_en": "CIFAR-10 — frozen ResNet-18",
+          "metric_en": "Classification accuracy (10 classes)",
+          "eval_set_en": "1,000 images (MAX_CENTRALIZED_IMAGES = 1000)",
+          "hyper_en": {
+            "Model": "torchvision ResNet-18, frozen (11.2M weights, in eval, ImageNet head removed) → L2-normalized 512-d features → trainable nn.Linear(512, 10) head",
+            "Initial weights": "ResNet18_Weights.IMAGENET1K_V1 (backbone) · random head",
+            "Optimizer": "SGD, momentum 0.9",
+            "Learning rate": "1.0",
+            "Batch size": "32",
+            "Local epochs": "1",
+            "Data per client": "500 images (MAX_IMAGES_PER_CLIENT)",
+            "Partitioning": "IID (IidPartitioner)",
+            "Preprocessing": "Resize 224 · ImageNet Normalize (0.485/0.456/0.406)",
+            "Communicated per round": "5,130 weights — the linear head only"
+          }
+        },
+        {
+          "id": "stackexchange",
+          "origin": "scratch",
+          "label": "Stack Exchange — LSTM do zero",
+          "metric": "Accuracy de próxima palavra",
+          "chance": null,
+          "csv": "fl_results_2026_09_07_144808.csv",
+          "eval_set": "tokens dos autores reservados para avaliação",
+          "queued": true,
+          "hyper": {
+            "Modelo": "LSTM in-house — Embedding(5.000, 128, padding_idx=0) · LSTM(128→256, batch_first) · Linear(256→5.000)",
+            "Pesos iniciais": "aleatórios (treinada do zero)",
+            "Otimizador": "SGD, momentum 0,9",
+            "Learning rate": "0,1",
+            "Batch size": "32",
+            "Épocas locais": "1",
+            "Dados por client": "respostas de um autor (SEQ_LEN 32, vocab 5.000)",
+            "Particionamento": "non-IID — um autor por client",
+            "Pré-processamento": "tokenização própria · pad/trunca em 32 tokens",
+            "Comunicado por round": "2.320.264 pesos — o modelo inteiro"
+          },
+          "label_en": "Stack Exchange — LSTM from scratch",
+          "metric_en": "Next-word accuracy",
+          "eval_set_en": "tokens from the held-out authors",
+          "hyper_en": {
+            "Model": "in-house LSTM — Embedding(5,000, 128, padding_idx=0) · LSTM(128→256, batch_first) · Linear(256→5,000)",
+            "Initial weights": "random (trained from scratch)",
+            "Optimizer": "SGD, momentum 0.9",
+            "Learning rate": "0.1",
+            "Batch size": "32",
+            "Local epochs": "1",
+            "Data per client": "one author's answers (SEQ_LEN 32, vocab 5,000)",
+            "Partitioning": "non-IID — one author per client",
+            "Preprocessing": "in-house tokenizer · pad/truncate to 32 tokens",
+            "Communicated per round": "2,320,264 weights — the whole model"
+          }
+        },
+        {
+          "id": "cifar10",
+          "origin": "scratch",
+          "label": "CIFAR-10 — CNN do zero",
+          "metric": "Accuracy de classificação (10 classes)",
+          "chance": 0.1,
+          "csv": "fl_results_2026_09_07_145932.csv",
+          "eval_set": "10.000 imagens (test split completo do CIFAR-10)",
+          "queued": true,
+          "hyper": {
+            "Modelo": "CNN do quickstart Flower — conv(3→6, 5×5) · maxpool 2×2 · conv(6→16, 5×5) · maxpool 2×2 · fc 400→120→84→10",
+            "Pesos iniciais": "aleatórios (treinada do zero)",
+            "Otimizador": "SGD, momentum 0,9",
+            "Learning rate": "0,1",
+            "Batch size": "32",
+            "Épocas locais": "1",
+            "Dados por client": "4.000 imagens (partição de 5.000, split 80/20)",
+            "Particionamento": "IID (IidPartitioner)",
+            "Pré-processamento": "ToTensor · Normalize(0,5 | 0,5)",
+            "Comunicado por round": "62.006 pesos — o modelo inteiro"
+          },
+          "label_en": "CIFAR-10 — CNN from scratch",
+          "metric_en": "Classification accuracy (10 classes)",
+          "eval_set_en": "10,000 images (full CIFAR-10 test split)",
+          "hyper_en": {
+            "Model": "Flower quickstart CNN — conv(3→6, 5×5) · maxpool 2×2 · conv(6→16, 5×5) · maxpool 2×2 · fc 400→120→84→10",
+            "Initial weights": "random (trained from scratch)",
+            "Optimizer": "SGD, momentum 0.9",
+            "Learning rate": "0.1",
+            "Batch size": "32",
+            "Local epochs": "1",
+            "Data per client": "4,000 images (5,000-image partition, 80/20 split)",
+            "Partitioning": "IID (IidPartitioner)",
+            "Preprocessing": "ToTensor · Normalize(0.5 | 0.5)",
+            "Communicated per round": "62,006 weights — the whole model"
+          }
+        },
+        {
+          "id": "stackexchange-pretrained",
+          "origin": "pretrained",
+          "label": "Stack Exchange — LoRA DistilGPT-2",
+          "metric": "Accuracy de próximo token",
+          "chance": null,
+          "csv": "fl_results_2026_09_07_151400.csv",
+          "eval_set": "800 blocos de 64 tokens (MAX_CENTRALIZED_BLOCKS = 800)",
+          "hyper": {
+            "Modelo": "DistilGPT-2 congelado (81.912.576 pesos) + adapters LoRA rank 8, α 16, aplicados em attn.c_attn (12 tensores)",
+            "Pesos iniciais": "distilgpt2 do Hugging Face · LoRA com B zerado",
+            "Otimizador": "AdamW",
+            "Learning rate": "5e-4",
+            "Batch size": "16",
+            "Épocas locais": "1",
+            "Dados por client": "250 blocos de 64 tokens (MAX_BLOCKS_PER_CLIENT)",
+            "Particionamento": "non-IID — um autor por client",
+            "Pré-processamento": "tokenizer do DistilGPT-2 · blocos de 64 tokens",
+            "Comunicado por round": "147.456 pesos — só os adapters LoRA"
+          },
+          "interrupted": true,
+          "interrupted_note": "o superlink foi reiniciado às 16:52 de 07/09/2026, quatro minutos depois do round 14",
+          "label_en": "Stack Exchange — LoRA DistilGPT-2",
+          "metric_en": "Next-token accuracy",
+          "eval_set_en": "800 blocks of 64 tokens (MAX_CENTRALIZED_BLOCKS = 800)",
+          "hyper_en": {
+            "Model": "frozen DistilGPT-2 (81,912,576 weights) + LoRA adapters rank 8, α 16, on attn.c_attn (12 tensors)",
+            "Initial weights": "distilgpt2 from Hugging Face · LoRA with B zeroed",
+            "Optimizer": "AdamW",
+            "Learning rate": "5e-4",
+            "Batch size": "16",
+            "Local epochs": "1",
+            "Data per client": "250 blocks of 64 tokens (MAX_BLOCKS_PER_CLIENT)",
+            "Partitioning": "non-IID — one author per client",
+            "Preprocessing": "DistilGPT-2 tokenizer · 64-token blocks",
+            "Communicated per round": "147,456 weights — the LoRA adapters only"
+          }
+        }
+      ],
+      "label_en": "Ungrouped FedAvg — full · NO seed",
+      "summary_en": "Plain FedAvg, no grouping: a single example-weighted mean over all 10 clients. Same tasks, same hyperparameters, same code as the grouped runs — only the strategy changes."
+    },
+    {
+      "id": "baseline-partial07-10c-20r",
+      "grupo": "regua",
+      "label": "FedAvg sem grupos — parcial 0,7 · SEM semente",
+      "compare_to": "partial07-10c-20r",
+      "config": {
+        "clients": 10,
+        "rounds": 20,
+        "fraction_train": 0.7,
+        "fraction_evaluate": 0.7,
+        "strategy": "FedAvg puro (TrackedFedAvg)",
+        "extra": [
+          {
+            "k": "min-train-nodes",
+            "v": "7",
+            "k_en": "min-train-nodes",
+            "v_en": "7"
+          },
+          {
+            "k": "min-evaluate-nodes",
+            "v": "7",
+            "k_en": "min-evaluate-nodes",
+            "v_en": "7"
+          },
+          {
+            "k": "agrupamento",
+            "v": "nenhum",
+            "k_en": "grouping",
+            "v_en": "none"
+          },
+          {
+            "k": "branch",
+            "v": "baseline-fedavg-pretrained",
+            "k_en": "branch",
+            "v_en": "baseline-fedavg-pretrained"
+          },
+          {
+            "k": "determinismo",
+            "v": "SEM semente",
+            "k_en": "determinism",
+            "v_en": "NO seed"
+          },
+          {
+            "k": "algoritmo efetivo",
+            "v": "≡ FedAvg puro (a média de dois níveis telescopa)",
+            "k_en": "algoritmo efetivo",
+            "v_en": "≡ FedAvg puro (a média de dois níveis telescopa)"
+          }
+        ],
+        "strategy_en": "Plain FedAvg (TrackedFedAvg)"
+      },
+      "summary": "FedAvg puro com 7 dos 10 clients sorteados por round. Sem grupos, não existe o caso de grupo vazio: os clients sorteados entram todos na mesma média.",
+      "notes": [
+        {
+          "title": "Esta simulação NÃO é um teste da estratégia — é uma medida de variância",
+          "body": "A agregação agrupada é algebricamente idêntica ao FedAvg puro (verificado em 07/09/2026: diferença máxima de <code>1e-16</code>), então, dados os mesmos updates dos clients, as duas produzem o mesmo modelo. Mas o projeto <b>não tem semente nenhuma</b> — nenhum <code>manual_seed</code> para a inicialização do modelo nem para os DataLoaders — então duas runs nunca recebem os mesmos updates. O round 0, avaliado antes de qualquer treino, já sai diferente. O que a diferença entre esta simulação e a agrupada correspondente mede, portanto, é <b>quanto duas execuções equivalentes divergem</b>. Use isso como régua de ruído antes de chamar de efeito qualquer diferença entre configurações."
+        }
+      ],
+      "runs": [
+        {
+          "id": "cifar10-pretrained",
+          "origin": "pretrained",
+          "label": "CIFAR-10 — ResNet-18 congelada",
+          "metric": "Accuracy de classificação (10 classes)",
+          "chance": 0.1,
+          "csv": "fl_results_2026_09_07_144420.csv",
+          "eval_set": "1.000 imagens (MAX_CENTRALIZED_IMAGES = 1000)",
+          "queued": true,
+          "hyper": {
+            "Modelo": "ResNet-18 da torchvision congelada (11,2M pesos, em eval, sem a cabeça ImageNet) → features 512-d normalizadas em L2 → head treinável nn.Linear(512, 10)",
+            "Pesos iniciais": "ResNet18_Weights.IMAGENET1K_V1 (backbone) · head aleatório",
+            "Otimizador": "SGD, momentum 0,9",
+            "Learning rate": "1,0",
+            "Batch size": "32",
+            "Épocas locais": "1",
+            "Dados por client": "500 imagens (MAX_IMAGES_PER_CLIENT)",
+            "Particionamento": "IID (IidPartitioner)",
+            "Pré-processamento": "Resize 224 · Normalize ImageNet (0,485/0,456/0,406)",
+            "Comunicado por round": "5.130 pesos — só o head linear"
+          },
+          "label_en": "CIFAR-10 — frozen ResNet-18",
+          "metric_en": "Classification accuracy (10 classes)",
+          "eval_set_en": "1,000 images (MAX_CENTRALIZED_IMAGES = 1000)",
+          "hyper_en": {
+            "Model": "torchvision ResNet-18, frozen (11.2M weights, in eval, ImageNet head removed) → L2-normalized 512-d features → trainable nn.Linear(512, 10) head",
+            "Initial weights": "ResNet18_Weights.IMAGENET1K_V1 (backbone) · random head",
+            "Optimizer": "SGD, momentum 0.9",
+            "Learning rate": "1.0",
+            "Batch size": "32",
+            "Local epochs": "1",
+            "Data per client": "500 images (MAX_IMAGES_PER_CLIENT)",
+            "Partitioning": "IID (IidPartitioner)",
+            "Preprocessing": "Resize 224 · ImageNet Normalize (0.485/0.456/0.406)",
+            "Communicated per round": "5,130 weights — the linear head only"
+          }
+        },
+        {
+          "id": "stackexchange",
+          "origin": "scratch",
+          "label": "Stack Exchange — LSTM do zero",
+          "metric": "Accuracy de próxima palavra",
+          "chance": null,
+          "csv": "fl_results_2026_09_07_145440.csv",
+          "eval_set": "tokens dos autores reservados para avaliação",
+          "queued": true,
+          "hyper": {
+            "Modelo": "LSTM in-house — Embedding(5.000, 128, padding_idx=0) · LSTM(128→256, batch_first) · Linear(256→5.000)",
+            "Pesos iniciais": "aleatórios (treinada do zero)",
+            "Otimizador": "SGD, momentum 0,9",
+            "Learning rate": "0,1",
+            "Batch size": "32",
+            "Épocas locais": "1",
+            "Dados por client": "respostas de um autor (SEQ_LEN 32, vocab 5.000)",
+            "Particionamento": "non-IID — um autor por client",
+            "Pré-processamento": "tokenização própria · pad/trunca em 32 tokens",
+            "Comunicado por round": "2.320.264 pesos — o modelo inteiro"
+          },
+          "label_en": "Stack Exchange — LSTM from scratch",
+          "metric_en": "Next-word accuracy",
+          "eval_set_en": "tokens from the held-out authors",
+          "hyper_en": {
+            "Model": "in-house LSTM — Embedding(5,000, 128, padding_idx=0) · LSTM(128→256, batch_first) · Linear(256→5,000)",
+            "Initial weights": "random (trained from scratch)",
+            "Optimizer": "SGD, momentum 0.9",
+            "Learning rate": "0.1",
+            "Batch size": "32",
+            "Local epochs": "1",
+            "Data per client": "one author's answers (SEQ_LEN 32, vocab 5,000)",
+            "Partitioning": "non-IID — one author per client",
+            "Preprocessing": "in-house tokenizer · pad/truncate to 32 tokens",
+            "Communicated per round": "2,320,264 weights — the whole model"
+          }
+        },
+        {
+          "id": "cifar10",
+          "origin": "scratch",
+          "label": "CIFAR-10 — CNN do zero",
+          "metric": "Accuracy de classificação (10 classes)",
+          "chance": 0.1,
+          "csv": "fl_results_2026_09_07_150726.csv",
+          "eval_set": "10.000 imagens (test split completo do CIFAR-10)",
+          "queued": true,
+          "hyper": {
+            "Modelo": "CNN do quickstart Flower — conv(3→6, 5×5) · maxpool 2×2 · conv(6→16, 5×5) · maxpool 2×2 · fc 400→120→84→10",
+            "Pesos iniciais": "aleatórios (treinada do zero)",
+            "Otimizador": "SGD, momentum 0,9",
+            "Learning rate": "0,1",
+            "Batch size": "32",
+            "Épocas locais": "1",
+            "Dados por client": "4.000 imagens (partição de 5.000, split 80/20)",
+            "Particionamento": "IID (IidPartitioner)",
+            "Pré-processamento": "ToTensor · Normalize(0,5 | 0,5)",
+            "Comunicado por round": "62.006 pesos — o modelo inteiro"
+          },
+          "label_en": "CIFAR-10 — CNN from scratch",
+          "metric_en": "Classification accuracy (10 classes)",
+          "eval_set_en": "10,000 images (full CIFAR-10 test split)",
+          "hyper_en": {
+            "Model": "Flower quickstart CNN — conv(3→6, 5×5) · maxpool 2×2 · conv(6→16, 5×5) · maxpool 2×2 · fc 400→120→84→10",
+            "Initial weights": "random (trained from scratch)",
+            "Optimizer": "SGD, momentum 0.9",
+            "Learning rate": "0.1",
+            "Batch size": "32",
+            "Local epochs": "1",
+            "Data per client": "4,000 images (5,000-image partition, 80/20 split)",
+            "Partitioning": "IID (IidPartitioner)",
+            "Preprocessing": "ToTensor · Normalize(0.5 | 0.5)",
+            "Communicated per round": "62,006 weights — the whole model"
+          }
+        }
+      ],
+      "label_en": "Ungrouped FedAvg — partial 0.7 · NO seed",
+      "summary_en": "Plain FedAvg with 7 of 10 clients sampled per round. Without groups there is no empty-group case: every sampled client lands in the same mean."
+    },
+    {
+      "id": "seed-full-examples",
+      "grupo": "experimento",
+      "label": "FedAvg, peso por exemplos — total · semeado",
+      "compare_to": "seed-full-equal",
+      "config": {
+        "clients": 10,
+        "rounds": 20,
+        "groups": 4,
+        "fraction_train": 1.0,
+        "fraction_evaluate": 1.0,
+        "strategy": "Grouped FedAvg",
+        "seed": 42,
+        "extra": [
+          {
+            "k": "equivale a",
+            "k_en": "equivalent to",
+            "v": "FedAvg puro",
+            "v_en": "plain FedAvg"
+          },
+          {
+            "k": "peso grupo→global",
+            "v": "proporcional aos exemplos",
+            "k_en": "group→global weight",
+            "v_en": "proportional to examples"
+          },
+          {
+            "k": "min-train-nodes",
+            "v": "10",
+            "k_en": "min-train-nodes",
+            "v_en": "10"
+          },
+          {
+            "k": "determinismo",
+            "v": "semeado (seed 42)",
+            "k_en": "determinism",
+            "v_en": "seeded (seed 42)"
+          },
+          {
+            "k": "algoritmo efetivo",
+            "v": "≡ FedAvg puro (a média de dois níveis telescopa)",
+            "k_en": "algoritmo efetivo",
+            "v_en": "≡ FedAvg puro (a média de dois níveis telescopa)"
+          }
+        ],
+        "strategy_en": "Grouped FedAvg"
+      },
+      "summary": "Cada grupo pesa proporcionalmente aos exemplos que trouxe. Esta média de dois níveis telescopa: o resultado é idêntico ao FedAvg puro, e serve aqui como linha de base contra o peso igual.",
+      "notes": [
+        {
+          "title": "Esta simulação é FedAvg puro, com outro nome",
+          "title_en": "This simulation is plain FedAvg under another name",
+          "body": "A agregação em dois níveis com peso proporcional aos exemplos <b>telescopa</b>: o <code>N_g</code> que pondera o grupo cancela com o <code>N_g</code> que normaliza a média dentro dele, e sobra a média ponderada de todos os clients — que é o FedAvg puro. Agrupar aqui é apenas colocar parênteses numa soma. Verificado numericamente (<code>1e-16</code>) e rodando o treino inteiro com a mesma semente (idêntico até a última casa). Então <b>não espere</b> que esta simulação difira das outras marcadas com o mesmo <i>equivale a</i>: quando diferem, a diferença é ruído de execução, não método.",
+          "body_en": "Two-level aggregation with example-proportional weights <b>telescopes</b>: the <code>N_g</code> weighting the group cancels the <code>N_g</code> normalizing the mean inside it, leaving the example-weighted mean over all clients — which is plain FedAvg. Grouping here is just putting parentheses around a sum. Verified numerically (<code>1e-16</code>) and by running the full training with the same seed (identical to the last digit). So <b>do not expect</b> this simulation to differ from the others tagged with the same <i>equivalent to</i>: when they differ, the difference is run-to-run noise, not method."
+        },
+        {
+          "title": "O que estamos testando: quanto cada grupo pesa",
+          "body": "Os 10 clients estão repartidos em 4 grupos fixos — <code>[2,3,7]</code>, <code>[5,6,8]</code>, <code>[4,9]</code>, <code>[0,1]</code>. O modelo global sai de uma média em dois níveis: primeiro os clients viram um modelo por grupo, depois os grupos viram o modelo global. A pergunta é <b>quanto cada grupo pesa nessa segunda etapa</b>, e há duas respostas possíveis. Estas simulações rodam as duas, com a mesma semente, os mesmos dados e os mesmos clients sorteados — para que a única diferença seja o peso."
+        },
+        {
+          "title": "Peso por exemplos: agrupar é só colocar parênteses",
+          "body": "Se cada grupo pesa o total de exemplos que trouxe, a conta se desfaz. Dentro do grupo, a média divide por <code>N_g</code>, o total de exemplos dele; entre grupos, multiplica por <code>N_g</code> de novo. Os dois se cancelam, e sobra a média ponderada de todos os clients — que é exatamente o FedAvg puro. É a diferença entre <code>(a+b) + (c+d)</code> e <code>a+b+c+d</code>: <b>parênteses não mudam uma soma</b>. Confirmamos isso de duas formas em 07/09/2026: pela álgebra (diferença de <code>1e-16</code>) e rodando o treino inteiro (idêntico até a última casa). Nesse modo o agrupamento aparece no log e não move o modelo."
+        },
+        {
+          "title": "Peso igual: quando o grupo passa a significar algo",
+          "body": "Se todo grupo pesa <code>1</code>, o <code>N_g</code> não cancela mais e o modelo global muda de verdade. Um grupo com 500 exemplos passa a influenciar tanto quanto um com 12.000. É o que dá sentido a grupo como <b>unidade real</b> — região, hospital, operadora — em vez de rótulo. E ataca um problema concreto destes dados: no Stack Exchange um único autor detém 54% dos exemplos e, sob peso por exemplos, arrasta o modelo global sozinho; sob peso igual, ele fica limitado à fatia do grupo dele."
+        },
+        {
+          "title": "Grupo vazio: um detalhe que muda de importância",
+          "body": "O sorteio de clients ignora os grupos. Com 7 de 10 sorteados, algum grupo fica sem ninguém em <b>15% dos rounds</b> — número que calculamos exato e que bateu com os 12 de 80 rounds medidos. Um grupo de 2 clients fica vazio oito vezes mais que um de 3, então grupos desiguais são desigualmente frágeis. Sob peso por exemplos isso não muda nada (grupo vazio tem peso zero dos dois lados da conta). Sob <b>peso igual</b>, muda: com 4 grupos e um vazio, os três restantes sobem de <code>1/4</code> para <code>1/3</code> cada. O grupo ausente passa a redistribuir influência."
+        },
+        {
+          "title": "Como ler a comparação",
+          "body": "Cada simulação de peso igual tem como referência a de peso por exemplos na mesma fração — é a linha tracejada laranja dos gráficos e a segunda coluna da tabela de comparação. Como as duas são semeadas e partem dos mesmos pesos iniciais, <b>qualquer diferença é do peso</b>, não de sorte. Não há mais margem de ruído a descontar: se as curvas se separam, o agrupamento está fazendo alguma coisa."
+        }
+      ],
+      "runs": [
+        {
+          "id": "cifar10-pretrained",
+          "origin": "pretrained",
+          "label": "CIFAR-10 — ResNet-18 congelada",
+          "metric": "Accuracy de classificação (10 classes)",
+          "chance": 0.1,
+          "csv": "fl_results_2026_09_08_103342.csv",
+          "eval_set": "1.000 imagens (MAX_CENTRALIZED_IMAGES = 1000)",
+          "hyper": {
+            "Modelo": "ResNet-18 da torchvision congelada (11,2M pesos, em eval, sem a cabeça ImageNet) → features 512-d normalizadas em L2 → head treinável nn.Linear(512, 10)",
+            "Pesos iniciais": "ResNet18_Weights.IMAGENET1K_V1 (backbone) · head aleatório",
+            "Otimizador": "SGD, momentum 0,9",
+            "Learning rate": "1,0",
+            "Batch size": "32",
+            "Épocas locais": "1",
+            "Dados por client": "500 imagens (MAX_IMAGES_PER_CLIENT)",
+            "Particionamento": "IID (IidPartitioner)",
+            "Pré-processamento": "Resize 224 · Normalize ImageNet (0,485/0,456/0,406)",
+            "Comunicado por round": "5.130 pesos — só o head linear"
+          },
+          "queued": true,
+          "label_en": "CIFAR-10 — frozen ResNet-18",
+          "metric_en": "Classification accuracy (10 classes)",
+          "eval_set_en": "1,000 images (MAX_CENTRALIZED_IMAGES = 1000)",
+          "hyper_en": {
+            "Model": "torchvision ResNet-18, frozen (11.2M weights, in eval, ImageNet head removed) → L2-normalized 512-d features → trainable nn.Linear(512, 10) head",
+            "Initial weights": "ResNet18_Weights.IMAGENET1K_V1 (backbone) · random head",
+            "Optimizer": "SGD, momentum 0.9",
+            "Learning rate": "1.0",
+            "Batch size": "32",
+            "Local epochs": "1",
+            "Data per client": "500 images (MAX_IMAGES_PER_CLIENT)",
+            "Partitioning": "IID (IidPartitioner)",
+            "Preprocessing": "Resize 224 · ImageNet Normalize (0.485/0.456/0.406)",
+            "Communicated per round": "5,130 weights — the linear head only"
+          }
+        },
+        {
+          "id": "stackexchange",
+          "origin": "scratch",
+          "label": "Stack Exchange — LSTM do zero",
+          "metric": "Accuracy de próxima palavra",
+          "chance": null,
+          "csv": "fl_results_2026_09_08_111049.csv",
+          "eval_set": "tokens dos autores reservados para avaliação",
+          "hyper": {
+            "Modelo": "LSTM in-house — Embedding(5.000, 128, padding_idx=0) · LSTM(128→256, batch_first) · Linear(256→5.000)",
+            "Pesos iniciais": "aleatórios (treinada do zero)",
+            "Otimizador": "SGD, momentum 0,9",
+            "Learning rate": "0,1",
+            "Batch size": "32",
+            "Épocas locais": "1",
+            "Dados por client": "respostas de um autor (SEQ_LEN 32, vocab 5.000)",
+            "Particionamento": "non-IID — um autor por client",
+            "Pré-processamento": "tokenização própria · pad/trunca em 32 tokens",
+            "Comunicado por round": "2.320.264 pesos — o modelo inteiro"
+          },
+          "queued": true,
+          "label_en": "Stack Exchange — LSTM from scratch",
+          "metric_en": "Next-word accuracy",
+          "eval_set_en": "tokens from the held-out authors",
+          "hyper_en": {
+            "Model": "in-house LSTM — Embedding(5,000, 128, padding_idx=0) · LSTM(128→256, batch_first) · Linear(256→5,000)",
+            "Initial weights": "random (trained from scratch)",
+            "Optimizer": "SGD, momentum 0.9",
+            "Learning rate": "0.1",
+            "Batch size": "32",
+            "Local epochs": "1",
+            "Data per client": "one author's answers (SEQ_LEN 32, vocab 5,000)",
+            "Partitioning": "non-IID — one author per client",
+            "Preprocessing": "in-house tokenizer · pad/truncate to 32 tokens",
+            "Communicated per round": "2,320,264 weights — the whole model"
+          }
+        },
+        {
+          "id": "cifar10",
+          "origin": "scratch",
+          "label": "CIFAR-10 — CNN do zero",
+          "metric": "Accuracy de classificação (10 classes)",
+          "chance": 0.1,
+          "csv": "fl_results_2026_09_08_124630.csv",
+          "eval_set": "10.000 imagens (test split completo do CIFAR-10)",
+          "hyper": {
+            "Modelo": "CNN do quickstart Flower — conv(3→6, 5×5) · maxpool 2×2 · conv(6→16, 5×5) · maxpool 2×2 · fc 400→120→84→10",
+            "Pesos iniciais": "aleatórios (treinada do zero)",
+            "Otimizador": "SGD, momentum 0,9",
+            "Learning rate": "0,1",
+            "Batch size": "32",
+            "Épocas locais": "1",
+            "Dados por client": "4.000 imagens (partição de 5.000, split 80/20)",
+            "Particionamento": "IID (IidPartitioner)",
+            "Pré-processamento": "ToTensor · Normalize(0,5 | 0,5)",
+            "Comunicado por round": "62.006 pesos — o modelo inteiro"
+          },
+          "queued": true,
+          "label_en": "CIFAR-10 — CNN from scratch",
+          "metric_en": "Classification accuracy (10 classes)",
+          "eval_set_en": "10,000 images (full CIFAR-10 test split)",
+          "hyper_en": {
+            "Model": "Flower quickstart CNN — conv(3→6, 5×5) · maxpool 2×2 · conv(6→16, 5×5) · maxpool 2×2 · fc 400→120→84→10",
+            "Initial weights": "random (trained from scratch)",
+            "Optimizer": "SGD, momentum 0.9",
+            "Learning rate": "0.1",
+            "Batch size": "32",
+            "Local epochs": "1",
+            "Data per client": "4,000 images (5,000-image partition, 80/20 split)",
+            "Partitioning": "IID (IidPartitioner)",
+            "Preprocessing": "ToTensor · Normalize(0.5 | 0.5)",
+            "Communicated per round": "62,006 weights — the whole model"
+          }
+        },
+        {
+          "id": "stackexchange-pretrained",
+          "origin": "pretrained",
+          "label": "Stack Exchange — LoRA DistilGPT-2",
+          "metric": "Accuracy de próximo token",
+          "chance": null,
+          "csv": "fl_results_2026_09_08_171500.csv",
+          "eval_set": "800 blocos de 64 tokens (MAX_CENTRALIZED_BLOCKS = 800)",
+          "hyper": {
+            "Modelo": "DistilGPT-2 congelado (81.912.576 pesos) + adapters LoRA rank 8, α 16, aplicados em attn.c_attn (12 tensores)",
+            "Pesos iniciais": "distilgpt2 do Hugging Face · LoRA com B zerado",
+            "Otimizador": "AdamW",
+            "Learning rate": "5e-4",
+            "Batch size": "16",
+            "Épocas locais": "1",
+            "Dados por client": "250 blocos de 64 tokens (MAX_BLOCKS_PER_CLIENT)",
+            "Particionamento": "non-IID — um autor por client",
+            "Pré-processamento": "tokenizer do DistilGPT-2 · blocos de 64 tokens",
+            "Comunicado por round": "147.456 pesos — só os adapters LoRA"
+          },
+          "queued": true,
+          "label_en": "Stack Exchange — LoRA DistilGPT-2",
+          "metric_en": "Next-token accuracy",
+          "eval_set_en": "800 blocks of 64 tokens (MAX_CENTRALIZED_BLOCKS = 800)",
+          "hyper_en": {
+            "Model": "frozen DistilGPT-2 (81,912,576 weights) + LoRA adapters rank 8, α 16, on attn.c_attn (12 tensors)",
+            "Initial weights": "distilgpt2 from Hugging Face · LoRA with B zeroed",
+            "Optimizer": "AdamW",
+            "Learning rate": "5e-4",
+            "Batch size": "16",
+            "Local epochs": "1",
+            "Data per client": "250 blocks of 64 tokens (MAX_BLOCKS_PER_CLIENT)",
+            "Partitioning": "non-IID — one author per client",
+            "Preprocessing": "DistilGPT-2 tokenizer · 64-token blocks",
+            "Communicated per round": "147,456 weights — the LoRA adapters only"
+          }
+        }
+      ],
+      "label_en": "FedAvg, example-weighted — full · seeded",
+      "summary_en": "Each group weighs in proportion to the examples it contributed. This two-level mean telescopes: the result is identical to plain FedAvg, and it serves here as the baseline against equal weighting."
+    },
+    {
+      "id": "seed-full-equal",
+      "grupo": "experimento",
+      "label": "Grupos com peso igual — total · semeado",
+      "compare_to": "seed-full-examples",
+      "config": {
+        "clients": 10,
+        "rounds": 20,
+        "groups": 4,
+        "fraction_train": 1.0,
+        "fraction_evaluate": 1.0,
+        "strategy": "Grouped FedAvg",
+        "seed": 42,
+        "extra": [
+          {
+            "k": "peso grupo→global",
+            "v": "igual",
+            "k_en": "group→global weight",
+            "v_en": "equal"
+          },
+          {
+            "k": "min-train-nodes",
+            "v": "10",
+            "k_en": "min-train-nodes",
+            "v_en": "10"
+          },
+          {
+            "k": "determinismo",
+            "v": "semeado (seed 42)",
+            "k_en": "determinism",
+            "v_en": "seeded (seed 42)"
+          },
+          {
+            "k": "algoritmo efetivo",
+            "v": "≠ FedAvg puro — o único algoritmo genuinamente diferente",
+            "k_en": "algoritmo efetivo",
+            "v_en": "≠ FedAvg puro — o único algoritmo genuinamente diferente"
+          }
+        ],
+        "strategy_en": "Grouped FedAvg"
+      },
+      "summary": "Cada grupo pesa o mesmo na agregação grupo→global, independentemente de quantos dados tem. É a configuração em que o agrupamento deixa de ser contabilidade e passa a mudar o modelo.",
+      "notes": [
+        {
+          "title": "O que estamos testando: quanto cada grupo pesa",
+          "body": "Os 10 clients estão repartidos em 4 grupos fixos — <code>[2,3,7]</code>, <code>[5,6,8]</code>, <code>[4,9]</code>, <code>[0,1]</code>. O modelo global sai de uma média em dois níveis: primeiro os clients viram um modelo por grupo, depois os grupos viram o modelo global. A pergunta é <b>quanto cada grupo pesa nessa segunda etapa</b>, e há duas respostas possíveis. Estas simulações rodam as duas, com a mesma semente, os mesmos dados e os mesmos clients sorteados — para que a única diferença seja o peso."
+        },
+        {
+          "title": "Peso por exemplos: agrupar é só colocar parênteses",
+          "body": "Se cada grupo pesa o total de exemplos que trouxe, a conta se desfaz. Dentro do grupo, a média divide por <code>N_g</code>, o total de exemplos dele; entre grupos, multiplica por <code>N_g</code> de novo. Os dois se cancelam, e sobra a média ponderada de todos os clients — que é exatamente o FedAvg puro. É a diferença entre <code>(a+b) + (c+d)</code> e <code>a+b+c+d</code>: <b>parênteses não mudam uma soma</b>. Confirmamos isso de duas formas em 07/09/2026: pela álgebra (diferença de <code>1e-16</code>) e rodando o treino inteiro (idêntico até a última casa). Nesse modo o agrupamento aparece no log e não move o modelo."
+        },
+        {
+          "title": "Peso igual: quando o grupo passa a significar algo",
+          "body": "Se todo grupo pesa <code>1</code>, o <code>N_g</code> não cancela mais e o modelo global muda de verdade. Um grupo com 500 exemplos passa a influenciar tanto quanto um com 12.000. É o que dá sentido a grupo como <b>unidade real</b> — região, hospital, operadora — em vez de rótulo. E ataca um problema concreto destes dados: no Stack Exchange um único autor detém 54% dos exemplos e, sob peso por exemplos, arrasta o modelo global sozinho; sob peso igual, ele fica limitado à fatia do grupo dele."
+        },
+        {
+          "title": "Grupo vazio: um detalhe que muda de importância",
+          "body": "O sorteio de clients ignora os grupos. Com 7 de 10 sorteados, algum grupo fica sem ninguém em <b>15% dos rounds</b> — número que calculamos exato e que bateu com os 12 de 80 rounds medidos. Um grupo de 2 clients fica vazio oito vezes mais que um de 3, então grupos desiguais são desigualmente frágeis. Sob peso por exemplos isso não muda nada (grupo vazio tem peso zero dos dois lados da conta). Sob <b>peso igual</b>, muda: com 4 grupos e um vazio, os três restantes sobem de <code>1/4</code> para <code>1/3</code> cada. O grupo ausente passa a redistribuir influência."
+        },
+        {
+          "title": "Como ler a comparação",
+          "body": "Cada simulação de peso igual tem como referência a de peso por exemplos na mesma fração — é a linha tracejada laranja dos gráficos e a segunda coluna da tabela de comparação. Como as duas são semeadas e partem dos mesmos pesos iniciais, <b>qualquer diferença é do peso</b>, não de sorte. Não há mais margem de ruído a descontar: se as curvas se separam, o agrupamento está fazendo alguma coisa."
+        }
+      ],
+      "runs": [
+        {
+          "id": "cifar10-pretrained",
+          "origin": "pretrained",
+          "label": "CIFAR-10 — ResNet-18 congelada",
+          "metric": "Accuracy de classificação (10 classes)",
+          "chance": 0.1,
+          "csv": "fl_results_2026_09_08_104247.csv",
+          "eval_set": "1.000 imagens (MAX_CENTRALIZED_IMAGES = 1000)",
+          "hyper": {
+            "Modelo": "ResNet-18 da torchvision congelada (11,2M pesos, em eval, sem a cabeça ImageNet) → features 512-d normalizadas em L2 → head treinável nn.Linear(512, 10)",
+            "Pesos iniciais": "ResNet18_Weights.IMAGENET1K_V1 (backbone) · head aleatório",
+            "Otimizador": "SGD, momentum 0,9",
+            "Learning rate": "1,0",
+            "Batch size": "32",
+            "Épocas locais": "1",
+            "Dados por client": "500 imagens (MAX_IMAGES_PER_CLIENT)",
+            "Particionamento": "IID (IidPartitioner)",
+            "Pré-processamento": "Resize 224 · Normalize ImageNet (0,485/0,456/0,406)",
+            "Comunicado por round": "5.130 pesos — só o head linear"
+          },
+          "queued": true,
+          "label_en": "CIFAR-10 — frozen ResNet-18",
+          "metric_en": "Classification accuracy (10 classes)",
+          "eval_set_en": "1,000 images (MAX_CENTRALIZED_IMAGES = 1000)",
+          "hyper_en": {
+            "Model": "torchvision ResNet-18, frozen (11.2M weights, in eval, ImageNet head removed) → L2-normalized 512-d features → trainable nn.Linear(512, 10) head",
+            "Initial weights": "ResNet18_Weights.IMAGENET1K_V1 (backbone) · random head",
+            "Optimizer": "SGD, momentum 0.9",
+            "Learning rate": "1.0",
+            "Batch size": "32",
+            "Local epochs": "1",
+            "Data per client": "500 images (MAX_IMAGES_PER_CLIENT)",
+            "Partitioning": "IID (IidPartitioner)",
+            "Preprocessing": "Resize 224 · ImageNet Normalize (0.485/0.456/0.406)",
+            "Communicated per round": "5,130 weights — the linear head only"
+          }
+        },
+        {
+          "id": "stackexchange",
+          "origin": "scratch",
+          "label": "Stack Exchange — LSTM do zero",
+          "metric": "Accuracy de próxima palavra",
+          "chance": null,
+          "csv": "fl_results_2026_09_08_113755.csv",
+          "eval_set": "tokens dos autores reservados para avaliação",
+          "hyper": {
+            "Modelo": "LSTM in-house — Embedding(5.000, 128, padding_idx=0) · LSTM(128→256, batch_first) · Linear(256→5.000)",
+            "Pesos iniciais": "aleatórios (treinada do zero)",
+            "Otimizador": "SGD, momentum 0,9",
+            "Learning rate": "0,1",
+            "Batch size": "32",
+            "Épocas locais": "1",
+            "Dados por client": "respostas de um autor (SEQ_LEN 32, vocab 5.000)",
+            "Particionamento": "non-IID — um autor por client",
+            "Pré-processamento": "tokenização própria · pad/trunca em 32 tokens",
+            "Comunicado por round": "2.320.264 pesos — o modelo inteiro"
+          },
+          "queued": true,
+          "label_en": "Stack Exchange — LSTM from scratch",
+          "metric_en": "Next-word accuracy",
+          "eval_set_en": "tokens from the held-out authors",
+          "hyper_en": {
+            "Model": "in-house LSTM — Embedding(5,000, 128, padding_idx=0) · LSTM(128→256, batch_first) · Linear(256→5,000)",
+            "Initial weights": "random (trained from scratch)",
+            "Optimizer": "SGD, momentum 0.9",
+            "Learning rate": "0.1",
+            "Batch size": "32",
+            "Local epochs": "1",
+            "Data per client": "one author's answers (SEQ_LEN 32, vocab 5,000)",
+            "Partitioning": "non-IID — one author per client",
+            "Preprocessing": "in-house tokenizer · pad/truncate to 32 tokens",
+            "Communicated per round": "2,320,264 weights — the whole model"
+          }
+        },
+        {
+          "id": "cifar10",
+          "origin": "scratch",
+          "label": "CIFAR-10 — CNN do zero",
+          "metric": "Accuracy de classificação (10 classes)",
+          "chance": 0.1,
+          "csv": "fl_results_2026_09_08_131709.csv",
+          "eval_set": "10.000 imagens (test split completo do CIFAR-10)",
+          "hyper": {
+            "Modelo": "CNN do quickstart Flower — conv(3→6, 5×5) · maxpool 2×2 · conv(6→16, 5×5) · maxpool 2×2 · fc 400→120→84→10",
+            "Pesos iniciais": "aleatórios (treinada do zero)",
+            "Otimizador": "SGD, momentum 0,9",
+            "Learning rate": "0,1",
+            "Batch size": "32",
+            "Épocas locais": "1",
+            "Dados por client": "4.000 imagens (partição de 5.000, split 80/20)",
+            "Particionamento": "IID (IidPartitioner)",
+            "Pré-processamento": "ToTensor · Normalize(0,5 | 0,5)",
+            "Comunicado por round": "62.006 pesos — o modelo inteiro"
+          },
+          "queued": true,
+          "label_en": "CIFAR-10 — CNN from scratch",
+          "metric_en": "Classification accuracy (10 classes)",
+          "eval_set_en": "10,000 images (full CIFAR-10 test split)",
+          "hyper_en": {
+            "Model": "Flower quickstart CNN — conv(3→6, 5×5) · maxpool 2×2 · conv(6→16, 5×5) · maxpool 2×2 · fc 400→120→84→10",
+            "Initial weights": "random (trained from scratch)",
+            "Optimizer": "SGD, momentum 0.9",
+            "Learning rate": "0.1",
+            "Batch size": "32",
+            "Local epochs": "1",
+            "Data per client": "4,000 images (5,000-image partition, 80/20 split)",
+            "Partitioning": "IID (IidPartitioner)",
+            "Preprocessing": "ToTensor · Normalize(0.5 | 0.5)",
+            "Communicated per round": "62,006 weights — the whole model"
+          }
+        },
+        {
+          "id": "stackexchange-pretrained",
+          "origin": "pretrained",
+          "label": "Stack Exchange — LoRA DistilGPT-2",
+          "metric": "Accuracy de próximo token",
+          "chance": null,
+          "csv": "fl_results_2026_09_08_192651.csv",
+          "eval_set": "800 blocos de 64 tokens (MAX_CENTRALIZED_BLOCKS = 800)",
+          "hyper": {
+            "Modelo": "DistilGPT-2 congelado (81.912.576 pesos) + adapters LoRA rank 8, α 16, aplicados em attn.c_attn (12 tensores)",
+            "Pesos iniciais": "distilgpt2 do Hugging Face · LoRA com B zerado",
+            "Otimizador": "AdamW",
+            "Learning rate": "5e-4",
+            "Batch size": "16",
+            "Épocas locais": "1",
+            "Dados por client": "250 blocos de 64 tokens (MAX_BLOCKS_PER_CLIENT)",
+            "Particionamento": "non-IID — um autor por client",
+            "Pré-processamento": "tokenizer do DistilGPT-2 · blocos de 64 tokens",
+            "Comunicado por round": "147.456 pesos — só os adapters LoRA"
+          },
+          "queued": true,
+          "label_en": "Stack Exchange — LoRA DistilGPT-2",
+          "metric_en": "Next-token accuracy",
+          "eval_set_en": "800 blocks of 64 tokens (MAX_CENTRALIZED_BLOCKS = 800)",
+          "hyper_en": {
+            "Model": "frozen DistilGPT-2 (81,912,576 weights) + LoRA adapters rank 8, α 16, on attn.c_attn (12 tensors)",
+            "Initial weights": "distilgpt2 from Hugging Face · LoRA with B zeroed",
+            "Optimizer": "AdamW",
+            "Learning rate": "5e-4",
+            "Batch size": "16",
+            "Local epochs": "1",
+            "Data per client": "250 blocks of 64 tokens (MAX_BLOCKS_PER_CLIENT)",
+            "Partitioning": "non-IID — one author per client",
+            "Preprocessing": "DistilGPT-2 tokenizer · 64-token blocks",
+            "Communicated per round": "147,456 weights — the LoRA adapters only"
+          }
+        }
+      ],
+      "label_en": "Equal-weight groups — full · seeded",
+      "summary_en": "Every group weighs the same in the group→global step, regardless of how much data it holds. This is the setting where grouping stops being bookkeeping and starts changing the model."
+    },
+    {
+      "id": "seed-partial07-examples",
+      "grupo": "experimento",
+      "label": "FedAvg, peso por exemplos — parcial 0,7 · semeado",
+      "compare_to": "seed-partial07-equal",
+      "config": {
+        "clients": 10,
+        "rounds": 20,
+        "groups": 4,
+        "fraction_train": 0.7,
+        "fraction_evaluate": 0.7,
+        "strategy": "Grouped FedAvg",
+        "seed": 42,
+        "extra": [
+          {
+            "k": "equivale a",
+            "k_en": "equivalent to",
+            "v": "FedAvg puro",
+            "v_en": "plain FedAvg"
+          },
+          {
+            "k": "peso grupo→global",
+            "v": "proporcional aos exemplos",
+            "k_en": "group→global weight",
+            "v_en": "proportional to examples"
+          },
+          {
+            "k": "min-train-nodes",
+            "v": "7",
+            "k_en": "min-train-nodes",
+            "v_en": "7"
+          },
+          {
+            "k": "determinismo",
+            "v": "semeado (seed 42)",
+            "k_en": "determinism",
+            "v_en": "seeded (seed 42)"
+          },
+          {
+            "k": "algoritmo efetivo",
+            "v": "≡ FedAvg puro (a média de dois níveis telescopa)",
+            "k_en": "algoritmo efetivo",
+            "v_en": "≡ FedAvg puro (a média de dois níveis telescopa)"
+          }
+        ],
+        "strategy_en": "Grouped FedAvg"
+      },
+      "summary": "Cada grupo pesa proporcionalmente aos exemplos que trouxe. Esta média de dois níveis telescopa: o resultado é idêntico ao FedAvg puro, e serve aqui como linha de base contra o peso igual.",
+      "notes": [
+        {
+          "title": "Esta simulação é FedAvg puro, com outro nome",
+          "title_en": "This simulation is plain FedAvg under another name",
+          "body": "A agregação em dois níveis com peso proporcional aos exemplos <b>telescopa</b>: o <code>N_g</code> que pondera o grupo cancela com o <code>N_g</code> que normaliza a média dentro dele, e sobra a média ponderada de todos os clients — que é o FedAvg puro. Agrupar aqui é apenas colocar parênteses numa soma. Verificado numericamente (<code>1e-16</code>) e rodando o treino inteiro com a mesma semente (idêntico até a última casa). Então <b>não espere</b> que esta simulação difira das outras marcadas com o mesmo <i>equivale a</i>: quando diferem, a diferença é ruído de execução, não método.",
+          "body_en": "Two-level aggregation with example-proportional weights <b>telescopes</b>: the <code>N_g</code> weighting the group cancels the <code>N_g</code> normalizing the mean inside it, leaving the example-weighted mean over all clients — which is plain FedAvg. Grouping here is just putting parentheses around a sum. Verified numerically (<code>1e-16</code>) and by running the full training with the same seed (identical to the last digit). So <b>do not expect</b> this simulation to differ from the others tagged with the same <i>equivalent to</i>: when they differ, the difference is run-to-run noise, not method."
+        },
+        {
+          "title": "O que estamos testando: quanto cada grupo pesa",
+          "body": "Os 10 clients estão repartidos em 4 grupos fixos — <code>[2,3,7]</code>, <code>[5,6,8]</code>, <code>[4,9]</code>, <code>[0,1]</code>. O modelo global sai de uma média em dois níveis: primeiro os clients viram um modelo por grupo, depois os grupos viram o modelo global. A pergunta é <b>quanto cada grupo pesa nessa segunda etapa</b>, e há duas respostas possíveis. Estas simulações rodam as duas, com a mesma semente, os mesmos dados e os mesmos clients sorteados — para que a única diferença seja o peso."
+        },
+        {
+          "title": "Peso por exemplos: agrupar é só colocar parênteses",
+          "body": "Se cada grupo pesa o total de exemplos que trouxe, a conta se desfaz. Dentro do grupo, a média divide por <code>N_g</code>, o total de exemplos dele; entre grupos, multiplica por <code>N_g</code> de novo. Os dois se cancelam, e sobra a média ponderada de todos os clients — que é exatamente o FedAvg puro. É a diferença entre <code>(a+b) + (c+d)</code> e <code>a+b+c+d</code>: <b>parênteses não mudam uma soma</b>. Confirmamos isso de duas formas em 07/09/2026: pela álgebra (diferença de <code>1e-16</code>) e rodando o treino inteiro (idêntico até a última casa). Nesse modo o agrupamento aparece no log e não move o modelo."
+        },
+        {
+          "title": "Peso igual: quando o grupo passa a significar algo",
+          "body": "Se todo grupo pesa <code>1</code>, o <code>N_g</code> não cancela mais e o modelo global muda de verdade. Um grupo com 500 exemplos passa a influenciar tanto quanto um com 12.000. É o que dá sentido a grupo como <b>unidade real</b> — região, hospital, operadora — em vez de rótulo. E ataca um problema concreto destes dados: no Stack Exchange um único autor detém 54% dos exemplos e, sob peso por exemplos, arrasta o modelo global sozinho; sob peso igual, ele fica limitado à fatia do grupo dele."
+        },
+        {
+          "title": "Grupo vazio: um detalhe que muda de importância",
+          "body": "O sorteio de clients ignora os grupos. Com 7 de 10 sorteados, algum grupo fica sem ninguém em <b>15% dos rounds</b> — número que calculamos exato e que bateu com os 12 de 80 rounds medidos. Um grupo de 2 clients fica vazio oito vezes mais que um de 3, então grupos desiguais são desigualmente frágeis. Sob peso por exemplos isso não muda nada (grupo vazio tem peso zero dos dois lados da conta). Sob <b>peso igual</b>, muda: com 4 grupos e um vazio, os três restantes sobem de <code>1/4</code> para <code>1/3</code> cada. O grupo ausente passa a redistribuir influência."
+        },
+        {
+          "title": "Como ler a comparação",
+          "body": "Cada simulação de peso igual tem como referência a de peso por exemplos na mesma fração — é a linha tracejada laranja dos gráficos e a segunda coluna da tabela de comparação. Como as duas são semeadas e partem dos mesmos pesos iniciais, <b>qualquer diferença é do peso</b>, não de sorte. Não há mais margem de ruído a descontar: se as curvas se separam, o agrupamento está fazendo alguma coisa."
+        }
+      ],
+      "runs": [
+        {
+          "id": "cifar10-pretrained",
+          "origin": "pretrained",
+          "label": "CIFAR-10 — ResNet-18 congelada",
+          "metric": "Accuracy de classificação (10 classes)",
+          "chance": 0.1,
+          "csv": "fl_results_2026_09_08_105322.csv",
+          "eval_set": "1.000 imagens (MAX_CENTRALIZED_IMAGES = 1000)",
+          "hyper": {
+            "Modelo": "ResNet-18 da torchvision congelada (11,2M pesos, em eval, sem a cabeça ImageNet) → features 512-d normalizadas em L2 → head treinável nn.Linear(512, 10)",
+            "Pesos iniciais": "ResNet18_Weights.IMAGENET1K_V1 (backbone) · head aleatório",
+            "Otimizador": "SGD, momentum 0,9",
+            "Learning rate": "1,0",
+            "Batch size": "32",
+            "Épocas locais": "1",
+            "Dados por client": "500 imagens (MAX_IMAGES_PER_CLIENT)",
+            "Particionamento": "IID (IidPartitioner)",
+            "Pré-processamento": "Resize 224 · Normalize ImageNet (0,485/0,456/0,406)",
+            "Comunicado por round": "5.130 pesos — só o head linear"
+          },
+          "queued": true,
+          "label_en": "CIFAR-10 — frozen ResNet-18",
+          "metric_en": "Classification accuracy (10 classes)",
+          "eval_set_en": "1,000 images (MAX_CENTRALIZED_IMAGES = 1000)",
+          "hyper_en": {
+            "Model": "torchvision ResNet-18, frozen (11.2M weights, in eval, ImageNet head removed) → L2-normalized 512-d features → trainable nn.Linear(512, 10) head",
+            "Initial weights": "ResNet18_Weights.IMAGENET1K_V1 (backbone) · random head",
+            "Optimizer": "SGD, momentum 0.9",
+            "Learning rate": "1.0",
+            "Batch size": "32",
+            "Local epochs": "1",
+            "Data per client": "500 images (MAX_IMAGES_PER_CLIENT)",
+            "Partitioning": "IID (IidPartitioner)",
+            "Preprocessing": "Resize 224 · ImageNet Normalize (0.485/0.456/0.406)",
+            "Communicated per round": "5,130 weights — the linear head only"
+          }
+        },
+        {
+          "id": "stackexchange",
+          "origin": "scratch",
+          "label": "Stack Exchange — LSTM do zero",
+          "metric": "Accuracy de próxima palavra",
+          "chance": null,
+          "csv": "fl_results_2026_09_08_120513.csv",
+          "eval_set": "tokens dos autores reservados para avaliação",
+          "hyper": {
+            "Modelo": "LSTM in-house — Embedding(5.000, 128, padding_idx=0) · LSTM(128→256, batch_first) · Linear(256→5.000)",
+            "Pesos iniciais": "aleatórios (treinada do zero)",
+            "Otimizador": "SGD, momentum 0,9",
+            "Learning rate": "0,1",
+            "Batch size": "32",
+            "Épocas locais": "1",
+            "Dados por client": "respostas de um autor (SEQ_LEN 32, vocab 5.000)",
+            "Particionamento": "non-IID — um autor por client",
+            "Pré-processamento": "tokenização própria · pad/trunca em 32 tokens",
+            "Comunicado por round": "2.320.264 pesos — o modelo inteiro"
+          },
+          "queued": true,
+          "label_en": "Stack Exchange — LSTM from scratch",
+          "metric_en": "Next-word accuracy",
+          "eval_set_en": "tokens from the held-out authors",
+          "hyper_en": {
+            "Model": "in-house LSTM — Embedding(5,000, 128, padding_idx=0) · LSTM(128→256, batch_first) · Linear(256→5,000)",
+            "Initial weights": "random (trained from scratch)",
+            "Optimizer": "SGD, momentum 0.9",
+            "Learning rate": "0.1",
+            "Batch size": "32",
+            "Local epochs": "1",
+            "Data per client": "one author's answers (SEQ_LEN 32, vocab 5,000)",
+            "Partitioning": "non-IID — one author per client",
+            "Preprocessing": "in-house tokenizer · pad/truncate to 32 tokens",
+            "Communicated per round": "2,320,264 weights — the whole model"
+          }
+        },
+        {
+          "id": "cifar10",
+          "origin": "scratch",
+          "label": "CIFAR-10 — CNN do zero",
+          "metric": "Accuracy de classificação (10 classes)",
+          "chance": 0.1,
+          "csv": "fl_results_2026_09_08_134311.csv",
+          "eval_set": "10.000 imagens (test split completo do CIFAR-10)",
+          "hyper": {
+            "Modelo": "CNN do quickstart Flower — conv(3→6, 5×5) · maxpool 2×2 · conv(6→16, 5×5) · maxpool 2×2 · fc 400→120→84→10",
+            "Pesos iniciais": "aleatórios (treinada do zero)",
+            "Otimizador": "SGD, momentum 0,9",
+            "Learning rate": "0,1",
+            "Batch size": "32",
+            "Épocas locais": "1",
+            "Dados por client": "4.000 imagens (partição de 5.000, split 80/20)",
+            "Particionamento": "IID (IidPartitioner)",
+            "Pré-processamento": "ToTensor · Normalize(0,5 | 0,5)",
+            "Comunicado por round": "62.006 pesos — o modelo inteiro"
+          },
+          "queued": true,
+          "label_en": "CIFAR-10 — CNN from scratch",
+          "metric_en": "Classification accuracy (10 classes)",
+          "eval_set_en": "10,000 images (full CIFAR-10 test split)",
+          "hyper_en": {
+            "Model": "Flower quickstart CNN — conv(3→6, 5×5) · maxpool 2×2 · conv(6→16, 5×5) · maxpool 2×2 · fc 400→120→84→10",
+            "Initial weights": "random (trained from scratch)",
+            "Optimizer": "SGD, momentum 0.9",
+            "Learning rate": "0.1",
+            "Batch size": "32",
+            "Local epochs": "1",
+            "Data per client": "4,000 images (5,000-image partition, 80/20 split)",
+            "Partitioning": "IID (IidPartitioner)",
+            "Preprocessing": "ToTensor · Normalize(0.5 | 0.5)",
+            "Communicated per round": "62,006 weights — the whole model"
+          }
+        },
+        {
+          "id": "stackexchange-pretrained",
+          "origin": "pretrained",
+          "label": "Stack Exchange — LoRA DistilGPT-2",
+          "metric": "Accuracy de próximo token",
+          "chance": null,
+          "csv": "fl_results_2026_09_08_135924.csv",
+          "eval_set": "800 blocos de 64 tokens (MAX_CENTRALIZED_BLOCKS = 800)",
+          "hyper": {
+            "Modelo": "DistilGPT-2 congelado (81.912.576 pesos) + adapters LoRA rank 8, α 16, aplicados em attn.c_attn (12 tensores)",
+            "Pesos iniciais": "distilgpt2 do Hugging Face · LoRA com B zerado",
+            "Otimizador": "AdamW",
+            "Learning rate": "5e-4",
+            "Batch size": "16",
+            "Épocas locais": "1",
+            "Dados por client": "250 blocos de 64 tokens (MAX_BLOCKS_PER_CLIENT)",
+            "Particionamento": "non-IID — um autor por client",
+            "Pré-processamento": "tokenizer do DistilGPT-2 · blocos de 64 tokens",
+            "Comunicado por round": "147.456 pesos — só os adapters LoRA"
+          },
+          "queued": true,
+          "label_en": "Stack Exchange — LoRA DistilGPT-2",
+          "metric_en": "Next-token accuracy",
+          "eval_set_en": "800 blocks of 64 tokens (MAX_CENTRALIZED_BLOCKS = 800)",
+          "hyper_en": {
+            "Model": "frozen DistilGPT-2 (81,912,576 weights) + LoRA adapters rank 8, α 16, on attn.c_attn (12 tensors)",
+            "Initial weights": "distilgpt2 from Hugging Face · LoRA with B zeroed",
+            "Optimizer": "AdamW",
+            "Learning rate": "5e-4",
+            "Batch size": "16",
+            "Local epochs": "1",
+            "Data per client": "250 blocks of 64 tokens (MAX_BLOCKS_PER_CLIENT)",
+            "Partitioning": "non-IID — one author per client",
+            "Preprocessing": "DistilGPT-2 tokenizer · 64-token blocks",
+            "Communicated per round": "147,456 weights — the LoRA adapters only"
+          }
+        }
+      ],
+      "label_en": "FedAvg, example-weighted — partial 0.7 · seeded",
+      "summary_en": "Each group weighs in proportion to the examples it contributed. This two-level mean telescopes: the result is identical to plain FedAvg, and it serves here as the baseline against equal weighting."
+    },
+    {
+      "id": "seed-partial07-equal",
+      "grupo": "experimento",
+      "label": "Grupos com peso igual — parcial 0,7 · semeado",
+      "compare_to": "seed-partial07-examples",
+      "config": {
+        "clients": 10,
+        "rounds": 20,
+        "groups": 4,
+        "fraction_train": 0.7,
+        "fraction_evaluate": 0.7,
+        "strategy": "Grouped FedAvg",
+        "seed": 42,
+        "extra": [
+          {
+            "k": "peso grupo→global",
+            "v": "igual",
+            "k_en": "group→global weight",
+            "v_en": "equal"
+          },
+          {
+            "k": "min-train-nodes",
+            "v": "7",
+            "k_en": "min-train-nodes",
+            "v_en": "7"
+          },
+          {
+            "k": "determinismo",
+            "v": "semeado (seed 42)",
+            "k_en": "determinism",
+            "v_en": "seeded (seed 42)"
+          },
+          {
+            "k": "algoritmo efetivo",
+            "v": "≠ FedAvg puro — o único algoritmo genuinamente diferente",
+            "k_en": "algoritmo efetivo",
+            "v_en": "≠ FedAvg puro — o único algoritmo genuinamente diferente"
+          }
+        ],
+        "strategy_en": "Grouped FedAvg"
+      },
+      "summary": "Cada grupo pesa o mesmo na agregação grupo→global, independentemente de quantos dados tem. É a configuração em que o agrupamento deixa de ser contabilidade e passa a mudar o modelo.",
+      "notes": [
+        {
+          "title": "O que estamos testando: quanto cada grupo pesa",
+          "body": "Os 10 clients estão repartidos em 4 grupos fixos — <code>[2,3,7]</code>, <code>[5,6,8]</code>, <code>[4,9]</code>, <code>[0,1]</code>. O modelo global sai de uma média em dois níveis: primeiro os clients viram um modelo por grupo, depois os grupos viram o modelo global. A pergunta é <b>quanto cada grupo pesa nessa segunda etapa</b>, e há duas respostas possíveis. Estas simulações rodam as duas, com a mesma semente, os mesmos dados e os mesmos clients sorteados — para que a única diferença seja o peso."
+        },
+        {
+          "title": "Peso por exemplos: agrupar é só colocar parênteses",
+          "body": "Se cada grupo pesa o total de exemplos que trouxe, a conta se desfaz. Dentro do grupo, a média divide por <code>N_g</code>, o total de exemplos dele; entre grupos, multiplica por <code>N_g</code> de novo. Os dois se cancelam, e sobra a média ponderada de todos os clients — que é exatamente o FedAvg puro. É a diferença entre <code>(a+b) + (c+d)</code> e <code>a+b+c+d</code>: <b>parênteses não mudam uma soma</b>. Confirmamos isso de duas formas em 07/09/2026: pela álgebra (diferença de <code>1e-16</code>) e rodando o treino inteiro (idêntico até a última casa). Nesse modo o agrupamento aparece no log e não move o modelo."
+        },
+        {
+          "title": "Peso igual: quando o grupo passa a significar algo",
+          "body": "Se todo grupo pesa <code>1</code>, o <code>N_g</code> não cancela mais e o modelo global muda de verdade. Um grupo com 500 exemplos passa a influenciar tanto quanto um com 12.000. É o que dá sentido a grupo como <b>unidade real</b> — região, hospital, operadora — em vez de rótulo. E ataca um problema concreto destes dados: no Stack Exchange um único autor detém 54% dos exemplos e, sob peso por exemplos, arrasta o modelo global sozinho; sob peso igual, ele fica limitado à fatia do grupo dele."
+        },
+        {
+          "title": "Grupo vazio: um detalhe que muda de importância",
+          "body": "O sorteio de clients ignora os grupos. Com 7 de 10 sorteados, algum grupo fica sem ninguém em <b>15% dos rounds</b> — número que calculamos exato e que bateu com os 12 de 80 rounds medidos. Um grupo de 2 clients fica vazio oito vezes mais que um de 3, então grupos desiguais são desigualmente frágeis. Sob peso por exemplos isso não muda nada (grupo vazio tem peso zero dos dois lados da conta). Sob <b>peso igual</b>, muda: com 4 grupos e um vazio, os três restantes sobem de <code>1/4</code> para <code>1/3</code> cada. O grupo ausente passa a redistribuir influência."
+        },
+        {
+          "title": "Como ler a comparação",
+          "body": "Cada simulação de peso igual tem como referência a de peso por exemplos na mesma fração — é a linha tracejada laranja dos gráficos e a segunda coluna da tabela de comparação. Como as duas são semeadas e partem dos mesmos pesos iniciais, <b>qualquer diferença é do peso</b>, não de sorte. Não há mais margem de ruído a descontar: se as curvas se separam, o agrupamento está fazendo alguma coisa."
+        }
+      ],
+      "runs": [
+        {
+          "id": "cifar10-pretrained",
+          "origin": "pretrained",
+          "label": "CIFAR-10 — ResNet-18 congelada",
+          "metric": "Accuracy de classificação (10 classes)",
+          "chance": 0.1,
+          "csv": "fl_results_2026_09_08_110218.csv",
+          "eval_set": "1.000 imagens (MAX_CENTRALIZED_IMAGES = 1000)",
+          "hyper": {
+            "Modelo": "ResNet-18 da torchvision congelada (11,2M pesos, em eval, sem a cabeça ImageNet) → features 512-d normalizadas em L2 → head treinável nn.Linear(512, 10)",
+            "Pesos iniciais": "ResNet18_Weights.IMAGENET1K_V1 (backbone) · head aleatório",
+            "Otimizador": "SGD, momentum 0,9",
+            "Learning rate": "1,0",
+            "Batch size": "32",
+            "Épocas locais": "1",
+            "Dados por client": "500 imagens (MAX_IMAGES_PER_CLIENT)",
+            "Particionamento": "IID (IidPartitioner)",
+            "Pré-processamento": "Resize 224 · Normalize ImageNet (0,485/0,456/0,406)",
+            "Comunicado por round": "5.130 pesos — só o head linear"
+          },
+          "queued": true,
+          "label_en": "CIFAR-10 — frozen ResNet-18",
+          "metric_en": "Classification accuracy (10 classes)",
+          "eval_set_en": "1,000 images (MAX_CENTRALIZED_IMAGES = 1000)",
+          "hyper_en": {
+            "Model": "torchvision ResNet-18, frozen (11.2M weights, in eval, ImageNet head removed) → L2-normalized 512-d features → trainable nn.Linear(512, 10) head",
+            "Initial weights": "ResNet18_Weights.IMAGENET1K_V1 (backbone) · random head",
+            "Optimizer": "SGD, momentum 0.9",
+            "Learning rate": "1.0",
+            "Batch size": "32",
+            "Local epochs": "1",
+            "Data per client": "500 images (MAX_IMAGES_PER_CLIENT)",
+            "Partitioning": "IID (IidPartitioner)",
+            "Preprocessing": "Resize 224 · ImageNet Normalize (0.485/0.456/0.406)",
+            "Communicated per round": "5,130 weights — the linear head only"
+          }
+        },
+        {
+          "id": "stackexchange",
+          "origin": "scratch",
+          "label": "Stack Exchange — LSTM do zero",
+          "metric": "Accuracy de próxima palavra",
+          "chance": null,
+          "csv": "fl_results_2026_09_08_122712.csv",
+          "eval_set": "tokens dos autores reservados para avaliação",
+          "hyper": {
+            "Modelo": "LSTM in-house — Embedding(5.000, 128, padding_idx=0) · LSTM(128→256, batch_first) · Linear(256→5.000)",
+            "Pesos iniciais": "aleatórios (treinada do zero)",
+            "Otimizador": "SGD, momentum 0,9",
+            "Learning rate": "0,1",
+            "Batch size": "32",
+            "Épocas locais": "1",
+            "Dados por client": "respostas de um autor (SEQ_LEN 32, vocab 5.000)",
+            "Particionamento": "non-IID — um autor por client",
+            "Pré-processamento": "tokenização própria · pad/trunca em 32 tokens",
+            "Comunicado por round": "2.320.264 pesos — o modelo inteiro"
+          },
+          "queued": true,
+          "label_en": "Stack Exchange — LSTM from scratch",
+          "metric_en": "Next-word accuracy",
+          "eval_set_en": "tokens from the held-out authors",
+          "hyper_en": {
+            "Model": "in-house LSTM — Embedding(5,000, 128, padding_idx=0) · LSTM(128→256, batch_first) · Linear(256→5,000)",
+            "Initial weights": "random (trained from scratch)",
+            "Optimizer": "SGD, momentum 0.9",
+            "Learning rate": "0.1",
+            "Batch size": "32",
+            "Local epochs": "1",
+            "Data per client": "one author's answers (SEQ_LEN 32, vocab 5,000)",
+            "Partitioning": "non-IID — one author per client",
+            "Preprocessing": "in-house tokenizer · pad/truncate to 32 tokens",
+            "Communicated per round": "2,320,264 weights — the whole model"
+          }
+        },
+        {
+          "id": "cifar10",
+          "origin": "scratch",
+          "label": "CIFAR-10 — CNN do zero",
+          "metric": "Accuracy de classificação (10 classes)",
+          "chance": 0.1,
+          "csv": "fl_results_2026_09_08_135244.csv",
+          "eval_set": "10.000 imagens (test split completo do CIFAR-10)",
+          "hyper": {
+            "Modelo": "CNN do quickstart Flower — conv(3→6, 5×5) · maxpool 2×2 · conv(6→16, 5×5) · maxpool 2×2 · fc 400→120→84→10",
+            "Pesos iniciais": "aleatórios (treinada do zero)",
+            "Otimizador": "SGD, momentum 0,9",
+            "Learning rate": "0,1",
+            "Batch size": "32",
+            "Épocas locais": "1",
+            "Dados por client": "4.000 imagens (partição de 5.000, split 80/20)",
+            "Particionamento": "IID (IidPartitioner)",
+            "Pré-processamento": "ToTensor · Normalize(0,5 | 0,5)",
+            "Comunicado por round": "62.006 pesos — o modelo inteiro"
+          },
+          "queued": true,
+          "label_en": "CIFAR-10 — CNN from scratch",
+          "metric_en": "Classification accuracy (10 classes)",
+          "eval_set_en": "10,000 images (full CIFAR-10 test split)",
+          "hyper_en": {
+            "Model": "Flower quickstart CNN — conv(3→6, 5×5) · maxpool 2×2 · conv(6→16, 5×5) · maxpool 2×2 · fc 400→120→84→10",
+            "Initial weights": "random (trained from scratch)",
+            "Optimizer": "SGD, momentum 0.9",
+            "Learning rate": "0.1",
+            "Batch size": "32",
+            "Local epochs": "1",
+            "Data per client": "4,000 images (5,000-image partition, 80/20 split)",
+            "Partitioning": "IID (IidPartitioner)",
+            "Preprocessing": "ToTensor · Normalize(0.5 | 0.5)",
+            "Communicated per round": "62,006 weights — the whole model"
+          }
+        },
+        {
+          "id": "stackexchange-pretrained",
+          "origin": "pretrained",
+          "label": "Stack Exchange — LoRA DistilGPT-2",
+          "metric": "Accuracy de próximo token",
+          "chance": null,
+          "csv": "fl_results_2026_09_08_153710.csv",
+          "eval_set": "800 blocos de 64 tokens (MAX_CENTRALIZED_BLOCKS = 800)",
+          "hyper": {
+            "Modelo": "DistilGPT-2 congelado (81.912.576 pesos) + adapters LoRA rank 8, α 16, aplicados em attn.c_attn (12 tensores)",
+            "Pesos iniciais": "distilgpt2 do Hugging Face · LoRA com B zerado",
+            "Otimizador": "AdamW",
+            "Learning rate": "5e-4",
+            "Batch size": "16",
+            "Épocas locais": "1",
+            "Dados por client": "250 blocos de 64 tokens (MAX_BLOCKS_PER_CLIENT)",
+            "Particionamento": "non-IID — um autor por client",
+            "Pré-processamento": "tokenizer do DistilGPT-2 · blocos de 64 tokens",
+            "Comunicado por round": "147.456 pesos — só os adapters LoRA"
+          },
+          "queued": true,
+          "label_en": "Stack Exchange — LoRA DistilGPT-2",
+          "metric_en": "Next-token accuracy",
+          "eval_set_en": "800 blocks of 64 tokens (MAX_CENTRALIZED_BLOCKS = 800)",
+          "hyper_en": {
+            "Model": "frozen DistilGPT-2 (81,912,576 weights) + LoRA adapters rank 8, α 16, on attn.c_attn (12 tensors)",
+            "Initial weights": "distilgpt2 from Hugging Face · LoRA with B zeroed",
+            "Optimizer": "AdamW",
+            "Learning rate": "5e-4",
+            "Batch size": "16",
+            "Local epochs": "1",
+            "Data per client": "250 blocks of 64 tokens (MAX_BLOCKS_PER_CLIENT)",
+            "Partitioning": "non-IID — one author per client",
+            "Preprocessing": "DistilGPT-2 tokenizer · 64-token blocks",
+            "Communicated per round": "147,456 weights — the LoRA adapters only"
+          }
+        }
+      ],
+      "label_en": "Equal-weight groups — partial 0.7 · seeded",
+      "summary_en": "Every group weighs the same in the group→global step, regardless of how much data it holds. This is the setting where grouping stops being bookkeeping and starts changing the model."
+    }
+  ],
+  "planejadas": [
+    {
+      "label": "FedAvg puro (sem grupos)",
+      "eixo": "Estratégia",
+      "feito": true,
+      "detail": "Rodado em 07/09/2026, nas 4 tarefas e nas duas frações. Como previsto pela álgebra, reproduziu as curvas agrupadas em vez de contrastar com elas — o valor da run acabou sendo medir a variância entre execuções, não testar a estratégia.",
+      "label_en": "Plain FedAvg (no groups)",
+      "eixo_en": "Strategy",
+      "detail_en": "Run on 2026-09-07 across the 4 tasks and both fractions. As the algebra predicted, it reproduced the grouped curves instead of contrasting with them — the run's real value turned out to be measuring run-to-run variance, not testing the strategy."
+    },
+    {
+      "label": "Semear as runs",
+      "eixo": "Metodologia",
+      "feito": false,
+      "detail": "Acrescentar <code>torch.manual_seed</code> na criação do modelo e nos DataLoaders. Hoje o round 0 já sai diferente entre duas runs, antes de qualquer treino, e isso contamina toda comparação. É pré-requisito para os outros itens significarem alguma coisa, então vem primeiro.",
+      "label_en": "Seed the runs",
+      "eixo_en": "Methodology",
+      "detail_en": "Done on 2026-09-08. <code>torch.manual_seed</code> on model creation and on the DataLoaders, plus the client deriving its own seed per partition and round. Two runs of the same configuration now match to every digit."
+    },
+    {
+      "label": "Peso igual por grupo",
+      "eixo": "Estratégia",
+      "feito": false,
+      "detail": "Trocar o peso grupo→global de proporcional aos exemplos para igual entre grupos. É a mudança que faz o agrupamento deixar de ser contabilidade e passar a ser método: cada grupo conta o mesmo, independentemente de quantos dados tem. Dá sentido a grupo como unidade real — região, hospital, operadora — em vez de rótulo.",
+      "label_en": "Equal weight per group",
+      "eixo_en": "Strategy",
+      "detail_en": "Done on 2026-09-08. Switching the group→global weight from proportional to equal is what makes grouping stop being bookkeeping. Confirmed: up to 3.27 pp of difference across the 16 seeded runs."
+    },
+    {
+      "label": "Participação parcial 0,3",
+      "eixo": "Participação",
+      "feito": false,
+      "detail": "3 de 10 clients por round, com <code>min-train-nodes = 3</code>. Estende o eixo que já tem 1,0 e 0,7. Com 4 grupos, metade fica vazia em boa parte dos rounds — o que só passa a importar depois do item de peso igual por grupo.",
+      "label_en": "Partial participation 0.3",
+      "eixo_en": "Participation",
+      "detail_en": "3 of 10 clients per round, with <code>min-train-nodes = 3</code>. Extends the axis that already has 1.0 and 0.7. With 4 groups, 100% of rounds have an empty group — which only matters now that equal weighting exists."
+    },
+    {
+      "label": "LR decay",
+      "eixo": "Otimização",
+      "feito": false,
+      "detail": "Branch <code>lr-decay</code>. Passo decrescente por round, para conter o ruído que a reamostragem de clients injeta no fim do treino. É o único eixo que muda a dinâmica de treino de verdade, então é onde há mais chance de efeito acima da régua de ruído.",
+      "label_en": "LR decay",
+      "eixo_en": "Optimization",
+      "detail_en": "Branch <code>lr-decay</code>. A decreasing step per round, to contain the noise that client resampling injects late in training. It is the only axis that genuinely changes training dynamics."
+    }
+  ],
+  "planejamento": {
+    "intro": "O plano varia <b>um eixo de cada vez</b> contra uma referência fixa. Tudo o mais — modelo, hiperparâmetros, particionamento, código — fica idêntico, para que a diferença observada tenha uma causa só. Desde 08/09/2026 todas as runs novas são <b>semeadas</b> (<code>seed = 42</code>): duas execuções da mesma configuração dão exatamente o mesmo resultado, então qualquer diferença entre duas simulações é da mudança, não do sorteio.",
+    "avisos": [
+      "<b>As runs antigas não têm semente.</b> As simulações marcadas <i>sem semente</i> foram feitas antes, e duas delas com a mesma configuração divergiam sozinhas — medimos <code>3,26 p.p.</code> no CIFAR-10 entre FedAvg puro e agrupado, que são o mesmo algoritmo. Elas continuam aqui porque são a régua do ruído, mas não servem para atribuir efeito a nada."
+    ],
+    "intro_en": "The plan varies <b>one axis at a time</b> against a fixed reference. Everything else — model, hyperparameters, partitioning, code — stays identical, so an observed difference has a single cause. Since 2026-09-08 every new run is <b>seeded</b> (<code>seed = 42</code>): two runs of the same configuration give exactly the same result, so any difference between two simulations comes from the change, not from the draw.",
+    "avisos_en": [
+      "<b>The older runs have no seed.</b> The simulations tagged <i>NO seed</i> predate seeding, and two of them with the same configuration diverged on their own — we measured <code>3.26 pp</code> on CIFAR-10 between plain and grouped FedAvg, which are the same algorithm. They stay here as the noise ruler, but they cannot attribute an effect to anything."
+    ]
+  },
+  "titulo_en": "Federated learning",
+  "subtitulo_en": "Simulation dashboard",
+  "achados": {
+    "intro": "O que as 30 runs deste painel mostraram, em ordem de importância para a pesquisa. Cada item foi medido, não inferido; os números vêm dos CSVs e dos logs de execução.",
+    "intro_en": "What the 30 runs in this dashboard showed, ordered by importance to the research. Every item was measured, not inferred; the numbers come from the CSVs and the execution logs.",
+    "itens": [
+      {
+        "title": "Agrupar não muda o modelo — em nenhum regime",
+        "title_en": "Grouping does not change the model — in any regime",
+        "body": "Com o peso grupo→global proporcional aos exemplos, a média de dois níveis <b>telescopa</b>: o <code>N_g</code> que pondera o grupo cancela com o <code>N_g</code> que normaliza a média dentro dele, e sobra exatamente o FedAvg puro. É a diferença entre <code>(a+b)+(c+d)</code> e <code>a+b+c+d</code> — parênteses não mudam uma soma. Verificado de três formas: pela álgebra, numericamente contra o <code>TrackedFedAvg</code> (diferença máxima <code>1e-16</code>, o epsilon de máquina em float64), e rodando o treino inteiro com a mesma semente (idêntico até a última casa, com uma única divergência de <code>1e-6</code> na loss, que é ordem de soma em float32). Vale inclusive com participação parcial e grupos vazios — a crença anterior de que 0,7 quebraria a identidade estava errada.",
+        "body_en": "With the group→global weight proportional to examples, the two-level mean <b>telescopes</b>: the <code>N_g</code> weighting the group cancels the <code>N_g</code> normalizing the mean inside it, leaving exactly plain FedAvg. It is the difference between <code>(a+b)+(c+d)</code> and <code>a+b+c+d</code> — parentheses do not change a sum. Verified three ways: algebraically, numerically against <code>TrackedFedAvg</code> (max difference <code>1e-16</code>, float64 machine epsilon), and by running the full training with the same seed (identical to the last digit, with a single <code>1e-6</code> divergence in the loss, which is float32 summation order). It holds under partial participation and empty groups too — the earlier belief that 0.7 would break the identity was wrong."
+      },
+      {
+        "title": "O peso do grupo é a alavanca — e ela funciona",
+        "title_en": "The group weight is the lever — and it works",
+        "body": "Trocar o peso grupo→global de proporcional para <b>igual entre grupos</b> faz o <code>N_g</code> parar de cancelar, e o agrupamento passa a mudar o modelo. Medido nas 16 runs semeadas: até <b>−3,27 p.p.</b> na CNN do zero em participação parcial e <b>−2,18 p.p.</b> na LSTM. Como tudo é semeado, cada ponto dessa diferença é do peso, sem ruído a descontar.",
+        "body_en": "Switching the group→global weight from proportional to <b>equal across groups</b> stops the <code>N_g</code> from cancelling, and grouping starts changing the model. Measured across the 16 seeded runs: up to <b>−3.27 pp</b> on the from-scratch CNN under partial participation and <b>−2.18 pp</b> on the LSTM. Since everything is seeded, every point of that difference comes from the weight, with no noise to discount."
+      },
+      {
+        "title": "Sem semente, o ruído engolia o efeito",
+        "title_en": "Without a seed, noise swamped the effect",
+        "body": "Antes de 08/09/2026 o projeto não tinha <code>manual_seed</code> nenhum. Duas execuções do <i>mesmo algoritmo</i> — FedAvg puro e agrupado, que provamos idênticos — terminaram <b>3,26 p.p.</b> apart no CIFAR-10. Era quase o tamanho dos 3,76 p.p. que eu havia atribuído à participação parcial, e numa segunda amostra o sinal chegou a inverter. Depois de semear, duas execuções da mesma configuração batem em todas as casas, inclusive na loss. As simulações marcadas <i>SEM semente</i> continuam no painel porque são a régua de ruído, não para atribuir efeito.",
+        "body_en": "Before 2026-09-08 the project had no <code>manual_seed</code> anywhere. Two runs of the <i>same algorithm</i> — plain and grouped FedAvg, which we proved identical — finished <b>3.26 pp</b> apart on CIFAR-10. That was nearly the size of the 3.76 pp I had attributed to partial participation, and on a second sample the sign even flipped. After seeding, two runs of the same configuration match to every digit, loss included. The simulations tagged <i>NO seed</i> stay in the dashboard as the noise ruler, not as evidence of effect."
+      },
+      {
+        "title": "Grupo vazio: calculado, medido, e só importa sob peso igual",
+        "title_en": "Empty groups: computed, measured, and only relevant under equal weight",
+        "body": "O sorteio de clients ignora os grupos. Com 7 de 10 sorteados e grupos de tamanho 3, 3, 2, 2, algum grupo fica vazio em <b>15,0%</b> dos rounds — valor exato pela combinatória, que bateu com os 12 de 80 rounds medidos nos logs. Um grupo de 2 fica vazio oito vezes mais que um de 3. Sob peso por exemplos isso não muda nada (peso zero dos dois lados); sob peso igual, os grupos sobreviventes sobem de <code>1/4</code> para <code>1/3</code> e a influência oscila round a round. Com fração 0,3 e 4 grupos, <b>100%</b> dos rounds têm grupo vazio — três clients não cobrem quatro grupos.",
+        "body_en": "Client sampling ignores the groups. With 7 of 10 sampled and groups of size 3, 3, 2, 2, some group is empty in <b>15.0%</b> of rounds — the exact combinatorial value, which matched the 12 of 80 rounds measured in the logs. A group of 2 goes empty eight times more often than one of 3. Under example weighting this changes nothing (zero weight on both sides); under equal weighting the surviving groups rise from <code>1/4</code> to <code>1/3</code> and influence swings round to round. At fraction 0.3 with 4 groups, <b>100%</b> of rounds have an empty group — three clients cannot cover four groups."
+      },
+      {
+        "title": "Pré-treinados quase não reagem ao peso; do zero reagem muito",
+        "title_en": "Pretrained models barely react to the weight; from-scratch ones react a lot",
+        "body": "LoRA DistilGPT-2 variou <b>−0,01</b> e <b>−0,18 p.p.</b> entre os dois pesos; o probe da ResNet-18, <b>+0,10</b> e <b>−0,70</b>. O que se treina neles é minúsculo — 147.456 e 5.130 pesos sobre uma representação já pronta — então mudar a média muda pouco. Na prática isso os torna quase imunes ao desequilíbrio de dados entre clients, o que é um argumento a favor deles em cenário federado real.",
+        "body_en": "LoRA DistilGPT-2 moved <b>−0.01</b> and <b>−0.18 pp</b> between the two weightings; the ResNet-18 probe, <b>+0.10</b> and <b>−0.70</b>. What is trained in them is tiny — 147,456 and 5,130 weights on top of a ready-made representation — so changing the mean changes little. In practice that makes them nearly immune to data imbalance across clients, which is an argument in their favour for real federated settings."
+      },
+      {
+        "title": "Na LSTM, o peso igual custa accuracy — e isso é a métrica, não o método",
+        "title_en": "On the LSTM, equal weighting costs accuracy — and that is the metric, not the method",
+        "body": "A LSTM perde <b>1,58</b> e <b>2,18 p.p.</b> sob peso igual. É a tarefa em que um único autor detém <b>54%</b> dos exemplos. O peso por exemplos deixa esse autor dominar o modelo global — e isso <i>infla</i> a accuracy, porque a avaliação centralizada é dominada pelo mesmo perfil de texto. O peso igual tira essa vantagem: o modelo fica mais representativo dos autores pequenos e paga na métrica agregada. A leitura honesta é que a accuracy centralizada premia o desequilíbrio; uma accuracy média <i>por client</i> contaria outra história.",
+        "body_en": "The LSTM loses <b>1.58</b> and <b>2.18 pp</b> under equal weighting. It is the task where a single author holds <b>54%</b> of the examples. Example weighting lets that author dominate the global model — and that <i>inflates</i> accuracy, because centralized evaluation is dominated by the same text profile. Equal weighting removes the advantage: the model becomes more representative of the small authors and pays for it in the aggregate metric. The honest reading is that centralized accuracy rewards imbalance; a <i>per-client</i> mean accuracy would tell a different story."
+      },
+      {
+        "title": "Os dois painéis de CIFAR-10 não medem no mesmo conjunto",
+        "title_en": "The two CIFAR-10 panels are not measured on the same test set",
+        "body": "A CNN do zero é avaliada nas <b>10.000</b> imagens do test split completo; o probe da ResNet-18, em <b>1.000</b> (<code>MAX_CENTRALIZED_IMAGES = 1000</code>, porque cada imagem tem de atravessar o backbone congelado na CPU). Descobri pelo denominador implícito: <code>0,840000</code> só sai de 1.000 exemplos. Consequência: erro padrão de <b>≈1,2 p.p.</b> no probe contra <b>≈0,5 p.p.</b> na CNN. A amostra de 1.000 é aleatória (<code>shuffle(seed=42)</code> antes do corte), então é estimativa não-enviesada — só menos precisa.",
+        "body_en": "The from-scratch CNN is evaluated on the full <b>10,000</b>-image test split; the ResNet-18 probe on <b>1,000</b> (<code>MAX_CENTRALIZED_IMAGES = 1000</code>, because every image has to cross the frozen backbone on CPU). I found this from the implied denominator: <code>0.840000</code> can only come from 1,000 examples. Consequence: a standard error of <b>≈1.2 pp</b> on the probe against <b>≈0.5 pp</b> on the CNN. The 1,000-image sample is random (<code>shuffle(seed=42)</code> before the cut), so it is an unbiased estimate — just a less precise one."
+      },
+      {
+        "title": "Auditoria: as runs são reais e conferem com os logs",
+        "title_en": "Audit: the runs are genuine and match their logs",
+        "body": "Em 07/09/2026 confrontei cada CSV com o log de execução: <b>zero divergências</b> nas 21 accuracies e 21 losses de cada run, e cada log nomeia o CSV que escreveu. A coluna <code>num_clients_trained</code> lê exatamente 10 ou 7 conforme a fração, e a soma das participações por partição fecha em 200 e 140. As contagens de parâmetros foram medidas instanciando os modelos, não copiadas da documentação: <b>62.006</b>, <b>5.130</b>, <b>2.320.264</b> e <b>147.456</b>. Uma run de LoRA sem log preservado foi trocada por uma repetição auditável e equivalente.",
+        "body_en": "On 2026-09-07 I checked every CSV against its execution log: <b>zero divergences</b> across the 21 accuracies and 21 losses of each run, and every log names the CSV it wrote. The <code>num_clients_trained</code> column reads exactly 10 or 7 per the fraction, and per-partition participation sums to 200 and 140. Parameter counts were measured by instantiating the models, not copied from docs: <b>62,006</b>, <b>5,130</b>, <b>2,320,264</b> and <b>147,456</b>. One LoRA run with no preserved log was swapped for an auditable, equivalent repeat."
+      }
+    ]
+  }
+}
