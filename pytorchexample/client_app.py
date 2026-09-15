@@ -4,6 +4,7 @@ import torch
 from flwr.app import ArrayRecord, Context, Message, MetricRecord, RecordDict
 from flwr.clientapp import ClientApp
 
+from pytorchexample.seeding import client_seed, seed_everything
 from pytorchexample.strategy.grouped_fedavg import PARTITION_ID_KEY
 from pytorchexample.tasks.registry import get_task
 
@@ -35,10 +36,23 @@ def train(msg: Message, context: Context) -> Message:
 
     partition_id, num_partitions = _read_partition_config(context)
     batch_size = int(context.run_config["batch-size"])
+
+    # A semente do client depende da run, da particao e do round. Depender dos
+    # tres importa: da run para ser repetivel, da particao para dois clients
+    # nao embaralharem identicamente, e do round para o mesmo client nao repetir
+    # a mesma ordem de batches em todo round -- o que enviesaria o treino.
+    # `group_id` da metadata do Flower carrega o numero do round.
+    base_seed = int(msg.content["config"].get("seed", 0))
+    server_round = int(getattr(msg.metadata, "group_id", 0) or 0)
+    semente = client_seed(base_seed, partition_id, server_round) if base_seed else 0
+    if semente:
+        seed_everything(semente)
+
     trainloader, _ = task.load_partition_data(
         partition_id=partition_id,
         num_partitions=num_partitions,
         batch_size=batch_size,
+        seed=semente,
     )
 
     train_metrics = task.train(

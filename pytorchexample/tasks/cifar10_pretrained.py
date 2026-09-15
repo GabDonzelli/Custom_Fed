@@ -60,6 +60,7 @@ from flwr_datasets.partitioner import IidPartitioner
 from torch import nn
 from torch.utils.data import DataLoader, TensorDataset
 from torchvision.transforms import Compose, Normalize, Resize, ToTensor
+from pytorchexample.seeding import seeded_generator
 
 # ImageNet normalization: what the pretrained weights were trained to expect.
 IMAGENET_MEAN = (0.485, 0.456, 0.406)
@@ -84,6 +85,11 @@ MAX_CENTRALIZED_IMAGES = 1000
 # Seed for the deterministic subsampling above, so a client sees the same
 # images in every round and across runs.
 SUBSAMPLE_SEED = 42
+
+
+def _gerador(seed: int):
+    """Generator for a shuffling DataLoader, or None when seeding is off."""
+    return seeded_generator(seed) if seed else None
 
 
 class LinearHead(nn.Module):
@@ -218,6 +224,7 @@ class Cifar10PretrainedTask:
         partition_id: int,
         num_partitions: int,
         batch_size: int,
+        seed: int = 0,
     ) -> tuple[DataLoader, DataLoader]:
         """Load one IID partition as cached, frozen-backbone features."""
         cache_key = (partition_id, num_partitions)
@@ -240,7 +247,7 @@ class Cifar10PretrainedTask:
 
         train_features, validation_features = self._partition_cache[cache_key]
         return (
-            DataLoader(train_features, batch_size=batch_size, shuffle=True),
+            DataLoader(train_features, batch_size=batch_size, shuffle=True, generator=_gerador(seed)),
             DataLoader(validation_features, batch_size=batch_size, shuffle=False),
         )
 

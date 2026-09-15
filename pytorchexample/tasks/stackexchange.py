@@ -25,6 +25,7 @@ import torch.nn.functional as F
 from datasets import load_dataset
 from torch import nn
 from torch.utils.data import DataLoader, Dataset
+from pytorchexample.seeding import seeded_generator
 
 DATASET_NAME = "HuggingFaceH4/stack-exchange-preferences"
 
@@ -160,6 +161,11 @@ def _select_partitions(
     return author_to_partition, held_out
 
 
+def _gerador(seed: int):
+    """Generator for a shuffling DataLoader, or None when seeding is off."""
+    return seeded_generator(seed) if seed else None
+
+
 class _TokenSequenceDataset(Dataset):
     """Fixed-length token id sequences for next-word-prediction training."""
 
@@ -269,6 +275,7 @@ class StackExchangeTask:
         partition_id: int,
         num_partitions: int,
         batch_size: int,
+        seed: int = 0,
     ) -> tuple[DataLoader, DataLoader]:
         """Load one author's answers, split 80/20 into train/validation."""
         self._ensure_dataset(num_partitions)
@@ -279,7 +286,7 @@ class StackExchangeTask:
         val_sequences = [self._encode(t) for t in tokens_list[split_point:]]
 
         trainloader = DataLoader(
-            _TokenSequenceDataset(train_sequences), batch_size=batch_size, shuffle=True
+            _TokenSequenceDataset(train_sequences), batch_size=batch_size, shuffle=True, generator=_gerador(seed)
         )
         validationloader = DataLoader(
             _TokenSequenceDataset(val_sequences), batch_size=batch_size, shuffle=False

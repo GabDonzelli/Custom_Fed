@@ -26,10 +26,14 @@ class GroupedFedAvg(FedAvg):
     def __init__(
         self,
         partition_groups: PartitionGroups,
+        group_weight_mode: str = "examples",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.partition_groups = partition_groups
+        # "examples" (peso proporcional aos dados) ou "equal" (todo grupo vale
+        # o mesmo). Ver aggregate_group_models para o que cada um implica.
+        self.group_weight_mode = group_weight_mode
         self.partition_to_group = build_partition_to_group(partition_groups)
 
         # This mapping is learned from real replies, never from node ordering.
@@ -144,6 +148,7 @@ class GroupedFedAvg(FedAvg):
             group_aggregations=group_aggregations,
             weighted_by_key=self.weighted_by_key,
             arrayrecord_key=self.arrayrecord_key,
+            group_weight_mode=self.group_weight_mode,
         )
         global_metrics = self.train_metrics_aggr_fn(
             all_records,

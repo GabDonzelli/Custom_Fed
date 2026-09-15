@@ -31,6 +31,7 @@ class FederatedTask(Protocol):
         partition_id: int,
         num_partitions: int,
         batch_size: int,
+        seed: int = 0,
     ) -> tuple[DataLoader, DataLoader]:
         """Load the local train and validation data for one partition."""
 

@@ -54,13 +54,51 @@ def aggregate_group_models(
     group_aggregations: list[GroupAggregation],
     weighted_by_key: str,
     arrayrecord_key: str,
+    group_weight_mode: str = "examples",
 ) -> ArrayRecord:
-    """Aggregate group models proportionally to each group's examples."""
+    """Combine one model per group into the global model.
+
+    Dois modos, e a escolha entre eles decide se o agrupamento e metodo ou
+    contabilidade:
+
+    "examples" -- cada grupo pesa o total de exemplos que trouxe. Composta com a
+    media interna do grupo, essa escolha *telescopa*: o N_g que pondera o grupo
+    cancela com o N_g que normaliza a media dentro dele, e o resultado e
+    exatamente a media ponderada de todos os clients. Ou seja, agrupar vira
+    apenas colocar parenteses numa soma, e o modelo global e identico ao do
+    FedAvg puro (verificado ponta a ponta em 07/09/2026).
+
+    "equal" -- todo grupo pesa 1, independentemente de quantos dados tem. Agora o
+    N_g nao cancela e o agrupamento passa a mudar o modelo. E o que da sentido a
+    grupo como unidade real (regiao, hospital, operadora) em vez de rotulo: um
+    grupo com 500 exemplos influencia tanto quanto um com 12.000. Tambem limita
+    o cliente dominante -- no Stack Exchange um unico autor detem 54% dos dados,
+    e sob peso por exemplos ele arrasta o modelo global sozinho.
+
+    Um grupo sem client sorteado nao chega aqui: a estrategia o pula antes. Isso
+    importa mais no modo "equal", onde os grupos restantes passam a dividir todo
+    o peso entre si -- com 4 grupos e um vazio, cada sobrevivente sobe de 1/4
+    para 1/3.
+    """
+    if group_weight_mode not in ("examples", "equal"):
+        raise ValueError(
+            f"group_weight_mode={group_weight_mode!r} desconhecido; "
+            "use 'examples' ou 'equal'."
+        )
+
     group_records = [
         RecordDict(
             {
                 arrayrecord_key: group.arrays,
-                "group-weight": MetricRecord({weighted_by_key: group.num_examples}),
+                "group-weight": MetricRecord(
+                    {
+                        weighted_by_key: (
+                            1.0
+                            if group_weight_mode == "equal"
+                            else group.num_examples
+                        )
+                    }
+                ),
             }
         )
         for group in group_aggregations

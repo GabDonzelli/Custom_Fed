@@ -7,6 +7,12 @@ from flwr_datasets.partitioner import IidPartitioner
 from torch import nn
 from torch.utils.data import DataLoader
 from torchvision.transforms import Compose, Normalize, ToTensor
+from pytorchexample.seeding import seeded_generator
+
+
+def _gerador(seed: int):
+    """Generator for a shuffling DataLoader, or None when seeding is off."""
+    return seeded_generator(seed) if seed else None
 
 
 class Cifar10Net(nn.Module):
@@ -77,6 +83,7 @@ class Cifar10Task:
         partition_id: int,
         num_partitions: int,
         batch_size: int,
+        seed: int = 0,
     ) -> tuple[DataLoader, DataLoader]:
         """Load and split one IID CIFAR-10 partition."""
         dataset = self._get_dataset(num_partitions)
@@ -84,7 +91,7 @@ class Cifar10Task:
         split = partition.train_test_split(test_size=0.2, seed=42)
         split = split.with_transform(self._apply_transforms)
 
-        trainloader = DataLoader(split["train"], batch_size=batch_size, shuffle=True)
+        trainloader = DataLoader(split["train"], batch_size=batch_size, shuffle=True, generator=_gerador(seed))
         validationloader = DataLoader(
             split["test"], batch_size=batch_size, shuffle=False
         )

@@ -41,6 +41,7 @@ import torch.nn.functional as F
 from torch import nn
 from torch.utils.data import DataLoader, Dataset
 
+from pytorchexample.seeding import seeded_generator
 from pytorchexample.tasks.lora import (
     inject_lora,
     load_lora_state_dict,
@@ -96,6 +97,11 @@ MAX_CENTRALIZED_BLOCKS = 800
 # Seed for the deterministic subsampling the caps above perform, so a client
 # trains on the same subset in every round and across runs.
 SUBSAMPLE_SEED = 42
+
+
+def _gerador(seed: int):
+    """Generator for a shuffling DataLoader, or None when seeding is off."""
+    return seeded_generator(seed) if seed else None
 
 
 class _BlockDataset(Dataset):
@@ -250,6 +256,7 @@ class StackExchangePretrainedTask:
         partition_id: int,
         num_partitions: int,
         batch_size: int,
+        seed: int = 0,
     ) -> tuple[DataLoader, DataLoader]:
         """Load one author's answers, split 80/20 into train/validation."""
         self._ensure_dataset(num_partitions)
@@ -268,7 +275,7 @@ class StackExchangePretrainedTask:
         )
 
         trainloader = DataLoader(
-            _BlockDataset(train_blocks), batch_size=batch_size, shuffle=True
+            _BlockDataset(train_blocks), batch_size=batch_size, shuffle=True, generator=_gerador(seed)
         )
         validationloader = DataLoader(
             _BlockDataset(validation_blocks), batch_size=batch_size, shuffle=False

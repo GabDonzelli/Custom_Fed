@@ -54,10 +54,10 @@ num-partitions = 10
 num-server-rounds = 20
 # PARTIAL PARTICIPATION. 0.7 of 10 partitions -> 7 clients sampled per round,
 # redrawn independently every round, for both the train and the evaluate phase.
-fraction-evaluate = 0.7
+fraction-evaluate = 1.0
 # Fraction of connected clients sampled for training each round.
 # With num-partitions = 100 and fraction-train = 0.1, ~10 clients train per round.
-fraction-train = 0.7
+fraction-train = 1.0
 # Minimum number of clients that must be sampled for training each round,
 # regardless of fraction-train (Flower default is 2).
 #
@@ -66,10 +66,10 @@ fraction-train = 0.7
 # at 10 while setting fraction-train = 0.7 still samples all 10 clients, and the
 # run looks like partial participation in the config while behaving exactly like
 # full participation. Keep it equal to round(fraction-train * num-partitions).
-min-train-nodes = 7
+min-train-nodes = 10
 # Same idea for the evaluate phase. Flower defaults both to 2, so a run with
 # fewer clients than this hangs waiting for nodes that will never arrive.
-min-evaluate-nodes = 7
+min-evaluate-nodes = 10
 # 1 local epoch for the pretrained task: with a 250-block cap per client the
 # round is 8 batches per client, and more local work mainly buys client drift.
 local-epochs = 1
@@ -81,6 +81,20 @@ learning-rate = 5e-4
 # CPU cost, but twice the optimizer steps -- which is what actually moves LoRA.
 batch-size = 16
 save-model = false
+
+# Determinismo. 0 desliga (comportamento antigo, nao reproduzivel).
+seed = 42
+
+# Qual agregacao usar: "grouped" (FedAvg agrupado, a pesquisa) ou "plain"
+# (FedAvg puro, o baseline). As duas rodam do mesmo codigo, entao trocar aqui
+# muda a estrategia e mais nada.
+strategy = "grouped"
+
+# Peso do grupo na agregacao grupo->global.
+#   "examples" -- proporcional aos dados do grupo. Telescopa: equivale ao FedAvg
+#                 puro, entao agrupar nao muda o modelo.
+#   "equal"    -- todo grupo vale o mesmo. E o que faz o agrupamento importar.
+group-weight = "equal"
 
 # How partition-groups are built: "sequential", "random", or "manual".
 # - sequential: contiguous ranges, e.g. 100 partitions / 4 groups -> 0-24,25-49,50-74,75-99.
